@@ -7,3 +7,4 @@ The following subfolders contain notebooks that demonstrate how to integrate pop
   - [LlamaIndex](./llama-index/README.md)
   - [Gemini](./gemini)
   - [Gemma](./gemma)
+  - [VoyageAI](./voyageai)
