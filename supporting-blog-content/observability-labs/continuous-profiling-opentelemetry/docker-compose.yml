@@ -1,0 +1,37 @@
+# Lab for "Continuous profiling with OpenTelemetry: the fourth signal".
+#
+#   - elastic-agent: enrolled in Fleet, runs the OpenTelemetry Profiling integration. The eBPF
+#     profiler needs root, the host PID namespace, and debugfs. It samples every process on the
+#     host, so it sees petclinic without touching it.
+#   - petclinic: unmodified Spring PetClinic on a HotSpot JVM, port 8080. Built locally because
+#     the published image for linux/arm64 is a GraalVM native image, and the profiler cannot
+#     unwind Java frames from a native image.
+#
+# The notebook writes .env.docker and runs: docker compose --env-file .env.docker up -d --build
+# Requires a Linux kernel 5.10+ with eBPF (Docker Desktop's VM qualifies).
+
+services:
+  elastic-agent:
+    image: docker.elastic.co/elastic-agent/elastic-agent:${AGENT_VERSION:-9.5.3}
+    container_name: elastic-agent
+    hostname: otel-profiling-preview-lab
+    user: root
+    privileged: true
+    pid: host
+    restart: unless-stopped
+    environment:
+      FLEET_ENROLL: "1"
+      FLEET_URL: ${FLEET_URL}
+      FLEET_ENROLLMENT_TOKEN: ${FLEET_ENROLLMENT_TOKEN}
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  petclinic:
+    build: ./petclinic-jvm
+    image: petclinic-jvm:local
+    container_name: petclinic
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
