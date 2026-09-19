@@ -1,0 +1,4 @@
+.env
+.env.docker
+.ipynb_checkpoints/
+data/*.ndjson
