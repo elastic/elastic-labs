@@ -1,0 +1,65 @@
+# EDOT Collector configuration for "Audit logging with the Elastic Stack: retain and investigate".
+#
+# One pipeline: read NDJSON audit events from a file, parse each line, keep the source
+# timestamp, and send the records to the logs-audit_demo.otel-lab data stream.
+#
+#   - filelog keeps its read offsets in file_storage, so a restart does not re-read the file.
+#   - json_parser leaves the raw line in the log body (stored as body.text) and puts the parsed
+#     fields under attributes.
+#   - The resource processor sets data_stream.dataset and data_stream.namespace. The exporter
+#     appends ".otel" to the dataset, which gives logs-audit_demo.otel-lab.
+#   - sending_queue.storage makes the export queue persistent across restarts.
+
+extensions:
+  file_storage:
+    directory: /var/lib/otelcol/storage
+    create_directory: true
+
+receivers:
+  filelog/audit:
+    include:
+      - /var/log/audit-lab/*.ndjson
+    start_at: beginning
+    storage: file_storage
+    operators:
+      - type: json_parser
+        parse_from: body
+        parse_to: attributes
+        timestamp:
+          parse_from: attributes.timestamp
+          layout_type: strptime
+          layout: "%Y-%m-%dT%H:%M:%SZ"
+      - type: remove
+        field: attributes.timestamp
+
+processors:
+  resource/audit:
+    attributes:
+      - key: data_stream.dataset
+        value: audit_demo
+        action: upsert
+      - key: data_stream.namespace
+        value: lab
+        action: upsert
+      - key: service.name
+        value: audit-lab-app
+        action: upsert
+
+exporters:
+  elasticsearch/otel:
+    endpoints:
+      - ${env:ELASTICSEARCH_URL}
+    api_key: ${env:ELASTICSEARCH_API_KEY}
+    mapping:
+      mode: otel
+    sending_queue:
+      enabled: true
+      storage: file_storage
+
+service:
+  extensions: [file_storage]
+  pipelines:
+    logs/audit:
+      receivers: [filelog/audit]
+      processors: [resource/audit]
+      exporters: [elasticsearch/otel]

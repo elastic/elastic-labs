@@ -1,0 +1,26 @@
+# Lab for "Audit logging with the Elastic Stack: retain and investigate".
+#
+#   - edot-collector: the official EDOT Collector image, reading ./data/*.ndjson and shipping to
+#     Elasticsearch with a restricted API key (create_doc + auto_configure on one data stream).
+#     The named volume keeps file offsets and the export queue across restarts.
+#
+# The notebook writes .env.docker and runs: docker compose --env-file .env.docker up -d
+
+services:
+  edot-collector:
+    image: docker.elastic.co/elastic-agent/elastic-otel-collector:${COLLECTOR_VERSION:-9.5.3}
+    container_name: audit-lab-collector
+    user: "0:0"
+    restart: unless-stopped
+    command: ["--config", "/etc/otelcol-config.yml"]
+    environment:
+      ELASTIC_AGENT_OTEL: "true"
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL}
+      ELASTICSEARCH_API_KEY: ${COLLECTOR_API_KEY}
+    volumes:
+      - ./otel-config.yaml:/etc/otelcol-config.yml:ro
+      - ./data:/var/log/audit-lab:ro
+      - collector-storage:/var/lib/otelcol/storage
+
+volumes:
+  collector-storage:
