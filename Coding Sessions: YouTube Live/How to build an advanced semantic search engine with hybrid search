@@ -1,0 +1,13 @@
+Get ready to say 'Hasta la vista, baby' to outdated search methods as we unleash the power of semantic search, all while channeling some of your all-time favorite sci-fi and horror movies. Join us as we transform your search engine into a futuristic powerhouse, with a nod to your favorite 🤖cyborg!
+
+🔍 What You'll Learn:
+
+The fundamentals of full-text search and its token-matching process
+How semantic search leverages vector embeddings for deeper understanding
+Step-by-step implementation of hybrid search using Elasticsearch
+The role of retrievers such as reciprocal rank fusion (RRF) and linear retrievers in merging search methods
+
+💡 Key Highlights:
+Live demonstration using a movie search application featuring your favorite sci-fi and horror films
+Detailed walkthrough of configuring search fields and connectors
+Insights into scoring mechanisms and balancing semantic with full-text search
