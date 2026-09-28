@@ -1,0 +1,17 @@
+# Stage 1: allocates 256 MiB and keeps it. Apply after two hours of baseline.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memory-change
+  namespace: pressure-lab
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: node-pressure-v2-worker
+  containers:
+    - name: memory-demo
+      image: polinux/stress:1.0.4
+      command: ["stress", "--vm", "1", "--vm-bytes", "256M", "--vm-keep"]
+      resources:
+        requests:
+          memory: 64Mi

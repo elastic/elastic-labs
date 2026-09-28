@@ -1,0 +1,17 @@
+# Stage 2: allocates 1 GiB and keeps it. Apply about four and a half minutes after stage 1.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memory-escalation
+  namespace: pressure-lab
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: node-pressure-v2-worker
+  containers:
+    - name: memory-demo
+      image: polinux/stress:1.0.4
+      command: ["stress", "--vm", "1", "--vm-bytes", "1024M", "--vm-keep"]
+      resources:
+        requests:
+          memory: 64Mi
