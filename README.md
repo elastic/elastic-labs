@@ -77,6 +77,7 @@ Try out Playground in Kibana with the following notebooks:
 - [`openai-semantic-search-RAG.ipynb`](./notebooks/integrations/openai/openai-KNN-RAG.ipynb)
 - [`amazon-bedrock-langchain-qa-example.ipynb`](notebooks/integrations/amazon-bedrock/langchain-qa-example.ipynb)
 - [`Semantic Search using the Inference API with the Cohere Service`](/notebooks/integrations/cohere/inference-cohere.ipynb)
+- [`Using AG2 (formerly AutoGen) with Elasticsearch`](notebooks/integrations/ag2/using-ag2-with-elasticsearch.ipynb)
 
 ### Model Upgrades
 
