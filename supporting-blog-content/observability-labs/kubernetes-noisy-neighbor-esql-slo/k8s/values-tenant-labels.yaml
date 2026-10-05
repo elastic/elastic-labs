@@ -1,0 +1,20 @@
+# Extra Helm values for the EDOT kube-stack chart from the Kubernetes quickstart.
+# Pass it after the quickstart's own values file:  -f values-tenant-labels.yaml
+# It copies two pod labels onto every metric document as resource.attributes.tenant
+# and resource.attributes.app, and names the cluster for k8s.cluster.name.
+# The key must match the processor id in the EDOT values (k8s_attributes), or Helm adds a second,
+# unused processor and the labels never reach the metrics.
+clusterName: noisy-neighbor
+collectors:
+  daemon:
+    config:
+      processors:
+        k8s_attributes:
+          extract:
+            labels:
+              - tag_name: tenant
+                key: tenant
+                from: pod
+              - tag_name: app
+                key: app.kubernetes.io/name
+                from: pod

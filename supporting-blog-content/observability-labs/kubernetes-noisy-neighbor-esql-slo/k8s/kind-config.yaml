@@ -1,0 +1,12 @@
+# Two-node kind cluster. The worker hosts both tenants; port 30080 on the host reaches the
+# storefront NodePort so the k6 probe runs outside the worker.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: noisy-neighbor
+nodes:
+  - role: control-plane
+  - role: worker
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP

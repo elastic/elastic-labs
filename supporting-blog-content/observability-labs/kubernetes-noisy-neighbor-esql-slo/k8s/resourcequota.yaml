@@ -1,0 +1,13 @@
+# Namespace budget for team-batch: two replicas at the fixed settings (500m CPU, 512Mi/768Mi).
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: batch-budget
+  namespace: team-batch
+spec:
+  hard:
+    requests.cpu: "1"
+    limits.cpu: "1"
+    requests.memory: 1Gi
+    limits.memory: 1536Mi
+    pods: "2"

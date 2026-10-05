@@ -1,0 +1,4 @@
+.env
+k8s/lab.env
+.ipynb_checkpoints/
+.venv/
