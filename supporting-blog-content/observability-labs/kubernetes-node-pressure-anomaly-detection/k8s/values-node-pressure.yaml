@@ -1,0 +1,17 @@
+# Extra Helm values for the EDOT kube-stack chart from the Kubernetes quickstart.
+# Pass it after the quickstart's own values file:  -f values-node-pressure.yaml
+# It names the cluster (k8s.cluster.name), adds MemoryPressure and DiskPressure to the node
+# conditions the k8s_cluster receiver reports, and samples both receivers every ten seconds.
+clusterName: node-pressure-v2
+collectors:
+  cluster:
+    config:
+      receivers:
+        k8s_cluster:
+          collection_interval: 10s
+          node_conditions_to_report: [Ready, MemoryPressure, DiskPressure]
+  daemon:
+    config:
+      receivers:
+        kubeletstats:
+          collection_interval: 10s

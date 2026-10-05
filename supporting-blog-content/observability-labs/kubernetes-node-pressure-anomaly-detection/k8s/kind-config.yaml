@@ -1,0 +1,20 @@
+# Two-node kind cluster. The worker's kubelet gets a soft eviction threshold sized for a Docker VM
+# with about 8 GiB of memory, and host port 30080 reaches the NGINX NodePort so the k6 probe runs
+# outside the worker. Set the threshold from your own VM size: memory.available is host-wide inside kind.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: node-pressure-v2
+nodes:
+  - role: control-plane
+  - role: worker
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            eviction-soft: "memory.available<6Gi"
+            eviction-soft-grace-period: "memory.available=5m"
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP

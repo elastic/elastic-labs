@@ -1,0 +1,8 @@
+.env
+.env.docker
+runs/
+data/*.ndjson
+.ipynb_checkpoints/
+__pycache__/
+.venv/
+k8s/lab.env
