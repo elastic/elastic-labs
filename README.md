@@ -1,18 +1,37 @@
 # Elasticsearch Examples & Apps
 
-**Visit [Search Labs](https://www.elastic.co/search-labs) for the latest articles and tutorials on using Elasticsearch for search and AI/ML-powered search experiences**
+This repo contains executable Python notebooks, sample apps, and resources for testing out the Elastic platform across search, security, and observability use cases.
 
-This repo contains executable Python notebooks, sample apps, and resources for testing out the Elastic platform:
+Visit Elastic Labs for the latest articles, tutorials, and more.
 
-- Learn how to use Elasticsearch as a vector database to store embeddings, power hybrid and semantic search experiences.
-- Build use cases such as retrieval augmented generation (RAG), summarization, and question answering (QA).
-- Test Elastic's leading-edge, out-of-the-box capabilities like the [Elastic Learned Sparse Encoder](https://www.elastic.co/guide/en/machine-learning/current/ml-nlp-elser.html) and [reciprocal rank fusion (RRF)](<https://www.elastic.co/blog/whats-new-elastic-enterprise-search-8-9-0#hybrid-search-with-reciprocal-rank-fusion-(rrf)-combines-multiple-search-techniques-for-better-results>), which produce best-in-class results without training or tuning.
-- Integrate with projects like OpenAI, Hugging Face, and LangChain, and use Elasticsearch as the backbone of your LLM-powered applications.
+* [Elasticsearch Labs](https://www.elastic.co/search-labs)  
+* [Security Labs](https://www.elastic.co/security-labs)  
+* [Observability Labs](https://www.elastic.co/observability-labs)
 
-Elastic enables all modern search experiences powered by AI/ML.
+## What you can build & learn
 
-- Bookmark or subscribe to [Elasticsearch Labs on Github](https://github.com/elastic/elasticsearch-labs)
-- Read our latest articles at [elastic.co/search-labs](https://www.elastic.co/search-labs)
+### Elasticsearch:
+
+* Use Elasticsearch as a vector database to store embeddings, run kNN search, and merge vector and keyword results with hybrid search and reciprocal rank fusion (RRF).  
+* Build retrieval augmented generation (RAG), question answering, and chatbot apps with `semantic_text`, the inference API, and semantic reranking.  
+* Get strong semantic search out of the box with ELSER and multilingual E5, without training or fine-tuning a model.  
+* Tune relevance with query rules, synonyms, and learning to rank.  
+* Connect Elasticsearch to OpenAI, Hugging Face, Cohere, Amazon Bedrock, Anthropic, and LangChain.
+
+### Observability:
+
+* Instrument your services with OpenTelemetry (OTel), including the Elastic Distributions of OpenTelemetry (EDOT), and send traces, metrics, and logs to Elastic.  
+* Query and analyze logs at scale with ES|QL and other query languages like PromQL.
+* Monitor LLM-powered apps, including latency, token usage, and cost.
+* Speed up root cause analysis with [Elastic Agent Builder](https://www.elastic.co/docs/explore-analyze/ai-features/elastic-agent-builder) and [machine learning anomaly detection](https://www.elastic.co/docs/explore-analyze/machine-learning/anomaly-detection).
+
+### Security:
+
+* Reproduce the detection engineering and threat hunting techniques from Security Labs Threat Command with ES|QL and EQL queries.
+* Explore the tooling behind malware analysis and threat intelligence write-ups.
+* Test attacks against LLM applications, such as prompt injection, and learn how to detect them.
+
+Watch, fork, or star [the Elastic Labs repo on GitHub](https://github.com/elastic/elastic-labs) for the latest updates.
 
 # Apps
 
