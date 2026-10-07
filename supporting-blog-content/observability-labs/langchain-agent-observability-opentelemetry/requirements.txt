@@ -1,0 +1,9 @@
+elasticsearch>=9.5,<10
+python-dotenv==1.0.1
+requests==2.32.3
+langchain==1.4.0
+langchain-openrouter==0.2.9
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-genai-langchain==1.1b1
+opentelemetry-util-genai==1.2b0
