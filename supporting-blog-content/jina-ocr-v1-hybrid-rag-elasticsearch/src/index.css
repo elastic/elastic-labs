@@ -1,0 +1,66 @@
+:root {
+  /* Earthy palette */
+  --primary: #5c6e1e;
+  --primary-dark: #3f4d12;
+  --primary-light: #7b9028;
+  --primary-subtle: #eef2e3;
+
+  --brown: #8b6f47;
+  --cream: #f5f0e8;
+  --cream-dark: #ede5d5;
+
+  --text: #3d3830;
+  --text-h: #1a1612;
+  --text-muted: #7a7060;
+  --bg: #ffffff;
+  --bg-warm: #faf8f4;
+  --border: #e0d8cc;
+
+  --shadow-sm: 0 1px 3px rgba(40, 30, 10, 0.08);
+  --shadow: 0 4px 12px rgba(40, 30, 10, 0.1);
+  --shadow-lg: 0 8px 24px rgba(40, 30, 10, 0.14);
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+
+  font: 16px/1.5 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3 {
+  font-family: var(--heading);
+  color: var(--text-h);
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.15;
+}
+
+h1 { font-size: 2.5rem; letter-spacing: -0.04em; }
+h2 { font-size: 1.75rem; letter-spacing: -0.02em; }
+h3 { font-size: 1.1rem; }
+
+p { margin: 0; }
+
+a { color: inherit; text-decoration: none; }
+
+img { display: block; max-width: 100%; }

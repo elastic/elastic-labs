@@ -1,0 +1,42 @@
+{
+  "name": "texas-native-search",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "server": "NODE_OPTIONS='--import=dotenv/config --import=@elastic/opentelemetry-node' node server/index.js",
+    "seed": "node server/seed.js"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8",
+    "@elastic/opentelemetry-node": "^1.11.0",
+    "cors": "^2",
+    "dotenv": "^16",
+    "express": "^4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.14.2",
+    "multer": "^2.0.1",
+    "pdf-to-png-converter": "^3.6.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/cors": "^2",
+    "@types/express": "^5",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.0",
+    "vite": "^8.0.4"
+  }
+}
