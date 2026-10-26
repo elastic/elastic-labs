@@ -1,0 +1,11 @@
+# Three workers: checkout and the load generator on net-latency-worker, one inventory replica on
+# each of net-latency-worker2 and net-latency-worker3. kind's default networking enforces
+# NetworkPolicy since kind 0.24.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: net-latency
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+  - role: worker

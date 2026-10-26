@@ -1,0 +1,15 @@
+# Incident 3: spread CoreDNS over worker2 and worker3, one replica per node.
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [net-latency-worker2, net-latency-worker3]}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: {k8s-app: kube-dns}
+              topologyKey: kubernetes.io/hostname
