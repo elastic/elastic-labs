@@ -154,7 +154,7 @@ server.registerTool(
         },
       };
     } catch (error: any) {
-      console.log("Error during search:", error);
+      console.error("Error during search:", error);
 
       return {
         content: [
