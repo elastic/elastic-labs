@@ -104,6 +104,7 @@ python stopwords.py --apply 5                # make them stop words (reopens the
 python stopwords.py --show                   # list the current stop words
 python stopwords.py --clear                  # remove all stop words
 pytest tests -q                              # tests against your cluster, on throwaway fingerprint-demo-test-* indices
+python proxy.py                              # LLM guard proxy on http://localhost:8787/v1/chat/completions
 python cleanup.py                            # delete the index
 ```
 
@@ -152,6 +153,24 @@ identifies a template or document type. So the index keeps them, and only the se
 
 `?reopen=true` can only change a filter that already exists: it acknowledges, but ignores, new analysis components.
 That is why the filter is defined (with `"_none_"`) when the index is created.
+
+### Guard an LLM (proxy)
+`proxy.py` is a small OpenAI-style endpoint (`POST /v1/chat/completions`) that checks the user messages of every
+request before it reaches the model (`guard.py`). A prompt that copies protected text gets HTTP 403 with the matched
+documents and the copied passages; anything else goes to the LLM through the Elasticsearch inference API, so the
+guard and the model share one API key. The whole conversation is checked, because chat clients resend the history.
+If the check fails (cluster down, text too long) the request is blocked; set `GUARD_FAIL_OPEN=true` to allow it.
+
+```bash
+python proxy.py
+curl -s localhost:8787/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages": [{"role": "user", "content": "Write a haiku about search."}]}'
+```
+
+Settings in `.env`: `GUARD_RULE` (default `min_shared`), `GUARD_N` (default 3), `GUARD_INFERENCE_ID` (a
+`completion` inference endpoint, default `.anthropic-claude-4.5-haiku-completion`), `GUARD_PORT` (8787). This is a
+sketch of the enforcement point, not a production gateway: no streaming, no auth, and roles are flattened into one
+prompt.
 
 ## Troubleshooting
 - **`Index 'fingerprint-demo' already exists`**: the loader keeps existing indices. Add `--recreate` to replace it.

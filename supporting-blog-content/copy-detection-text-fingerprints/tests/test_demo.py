@@ -197,3 +197,33 @@ def test_query_sends_the_whole_text(env):
     assert res.query["highlight"]["fields"]["body"]["type"] == "unified"
     q = check(es, name, text, "min_shared", 5).query["query"]
     assert q["match"]["body"] == {"query": text, "minimum_should_match": 5}
+
+
+def test_guard_blocks_copied_prompt_and_allows_clean_one(env):
+    from guard import screen
+
+    es, name = env
+    leak = [
+        {"role": "user", "content": f"Make this simpler: {COPIED}"},
+        {"role": "assistant", "content": "Sure, here it is."},
+        {"role": "user", "content": "Now one sentence please."},
+    ]
+    v = screen(es, name, leak, "min_shared", 3)
+    assert not v.allowed and [m["title"] for m in v.matches] == ["A"]
+    assert v.matches[0]["copied"] == [COPIED]
+    clean = [
+        {
+            "role": "user",
+            "content": "Write a short poem about tomatoes and compost in spring.",
+        }
+    ]
+    assert screen(es, name, clean, "min_shared", 3).allowed
+
+
+def test_guard_fails_closed_on_errors(env):
+    from guard import screen
+
+    es, _ = env
+    msgs = [{"role": "user", "content": COPIED}]
+    assert not screen(es, "no-such-index-xyz", msgs).allowed
+    assert screen(es, "no-such-index-xyz", msgs, fail_open=True).allowed
