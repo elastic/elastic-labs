@@ -1,0 +1,5 @@
+elasticsearch>=9.5,<10
+python-dotenv==1.0.1
+opentelemetry-sdk==1.45.0
+opentelemetry-exporter-otlp-proto-http==1.45.0
+opentelemetry-instrumentation-logging==0.66b0
