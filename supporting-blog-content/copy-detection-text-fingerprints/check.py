@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 from elasticsearch import BadRequestError
 
-from spans import PRE, POST, es_offsets, merge, parse_marked, runs, word_count
+from spans import PRE, POST, es_offsets, longest_run, merge, parse_marked
 
 ANALYZER = "fingerprint_8"
 RULES = ("any", "min_shared", "verified_run")
@@ -63,8 +63,9 @@ class Result:
     query: dict
 
 
-def analyze(es, index: str, text: str) -> list[dict]:
-    """Fingerprints of `text` with char offsets, using the index analyzer."""
+def analyze(es, index: str, text: str | list[str]) -> list[dict]:
+    """Fingerprints of `text` with char offsets and positions, using the index analyzer. A list is analyzed as
+    separate values, so no fingerprint spans two of them."""
     try:
         return es.indices.analyze(index=index, analyzer=ANALYZER, text=text)["tokens"]
     except BadRequestError as e:
@@ -100,6 +101,8 @@ def check(
     """
     from boilerplate import stop_words as read_stop_words
 
+    if rule not in RULES:
+        raise ValueError(f"unknown rule {rule!r}, expected one of {RULES}")
     n = DEFAULT_N[rule] if n is None else n
     if boilerplate:
         stop = set()
@@ -123,7 +126,7 @@ def check(
         if "too_many" in str(e) or "maxClauseCount" in str(e):
             raise CheckError(
                 f"The text has {len(fps)} distinct fingerprints, more query clauses than this cluster allows "
-                "(indices.query.bool.max_clause_count). Check a shorter part."
+                "(the limit depends on the node's heap and search thread pool). Check a shorter part."
             ) from e
         raise
     to_py = es_offsets(text)
@@ -132,14 +135,18 @@ def check(
         doc_text, dspans = parse_marked(h.get("highlight", {}).get("body", [""])[0])
         dspans = merge(dspans, doc_text)
         # shared = fingerprints of the highlighted passages (short) that are also in the input
-        passages = "\n".join(doc_text[s:e] for s, e in dspans)
-        shared = {t["token"] for t in analyze(es, index, passages)} & fps
+        passages = [doc_text[s:e] for s, e in dspans]
+        shared = (
+            {t["token"] for t in analyze(es, index, passages)} & fps
+            if passages
+            else set()
+        )
         in_spans = [
             (to_py(t["start_offset"]), to_py(t["end_offset"]))
             for t in tokens
             if t["token"] in shared
         ]
-        run = max((word_count(text, s) for s in runs(in_spans)), default=0)
+        run = longest_run([t["position"] for t in tokens if t["token"] in shared])
         if len(shared) < need or (rule == "verified_run" and run < n):
             continue
         matches.append(

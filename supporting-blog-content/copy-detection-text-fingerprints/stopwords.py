@@ -2,11 +2,19 @@
 
 python stopwords.py --show                  # current stop words
 python stopwords.py --find 5                # common phrases in >= 5 documents (nothing changes)
-python stopwords.py --apply 5               # add them as stop words (reopens the index)
+python stopwords.py --apply 5               # add them to the stop words (reopens the index; --clear to start over)
 python stopwords.py --clear                 # remove all stop words (reopens the index)
 """
 
 import argparse
+
+
+def min_docs(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError("MIN_DOCS must be at least 1")
+    return n
+
 
 from boilerplate import common_phrases, set_stop_words, stop_words
 from es import get_client, index_name
@@ -18,8 +26,8 @@ def main():
     )
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--show", action="store_true")
-    g.add_argument("--find", type=int, metavar="MIN_DOCS")
-    g.add_argument("--apply", type=int, metavar="MIN_DOCS")
+    g.add_argument("--find", type=min_docs, metavar="MIN_DOCS")
+    g.add_argument("--apply", type=min_docs, metavar="MIN_DOCS")
     g.add_argument("--clear", action="store_true")
     ap.add_argument("--limit", type=int, default=200, help="max phrases to find")
     ap.add_argument("--index", help="index name (default: INDEX_NAME in .env)")
@@ -37,7 +45,7 @@ def main():
         rows = common_phrases(es, idx, a.find or a.apply, a.limit)
         for p, d in rows:
             print(f"{d:6d}  {p}")
-        if a.apply:
+        if a.apply is not None:
             set_stop_words(es, idx, current | {p for p, _ in rows})
             print(f"{len(current | {p for p, _ in rows})} stop words applied")
 

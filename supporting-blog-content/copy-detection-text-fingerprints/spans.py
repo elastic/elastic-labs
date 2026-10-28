@@ -46,20 +46,19 @@ def merge(spans: list[tuple[int, int]], text: str) -> list[tuple[int, int]]:
     return out
 
 
-def runs(spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
-    """Merge only spans that overlap. Consecutive fingerprints overlap by 7 words, so each result is one unbroken
-    copied run. Two copied pieces that merely sit next to each other stay separate."""
-    out: list[tuple[int, int]] = []
-    for s, e in sorted(spans):
-        if out and s < out[-1][1]:
-            out[-1] = (out[-1][0], max(out[-1][1], e))
+def longest_run(positions: list[int], k: int = 8) -> int:
+    """Longest unbroken copied run, in words (tokens), from the positions of the shared k-word fingerprints.
+    A fingerprint at position p covers words p..p+k-1, so fingerprints whose words overlap form one run. Counting
+    tokens rather than spaces also works for Chinese and Japanese, where each character is a token.
+    """
+    best, start, end = 0, None, None
+    for p in sorted(set(positions)):
+        if end is not None and p < end:
+            end = p + k
         else:
-            out.append((s, e))
-    return out
-
-
-def word_count(text: str, span: tuple[int, int]) -> int:
-    return len(text[span[0] : span[1]].split())
+            start, end = p, p + k
+        best = max(best, end - start)
+    return best
 
 
 def mark(

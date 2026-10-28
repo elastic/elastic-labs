@@ -43,7 +43,7 @@ the index's analysis settings when you apply stop words, so it needs full rights
 Python 3.10 or later:
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp env.example .env
@@ -95,12 +95,12 @@ python load_data.py --patents 500            # fewer patents
 python load_data.py --from-folder ~/docs     # your own .txt / .md files instead (cut at about 9,000 tokens each)
 python load_data.py --recreate               # replace an existing index (without it, an existing index is kept)
 streamlit run app.py                         # the interface on http://localhost:8501
-python cli.py --file email.txt --rule min_shared --n 3
+python cli.py --file email.txt                # rule min_shared, N=3 (the default, as in the UI)
 python cli.py "paste text here" --rule verified_run --n 16
 cat email.txt | python cli.py --rule any
 python cli.py --file email.txt --boilerplate # count boilerplate stop words too (classification)
 python stopwords.py --find 5                 # phrases in >= 5 documents
-python stopwords.py --apply 5                # make them stop words (reopens the index)
+python stopwords.py --apply 5                # add them to the stop words (reopens the index)
 python stopwords.py --show                   # list the current stop words
 python stopwords.py --clear                  # remove all stop words
 pytest tests -q                              # tests against your cluster, on throwaway fingerprint-demo-test-* indices
@@ -129,7 +129,8 @@ name as an argument.
   fingerprints in a row mean a copied run of N + 7 tokens (the standard tokenizer splits hyphenated words, so this
   can be more than N + 7 words).
 - **verified_run N** (default 16 words): the input must also contain a copied passage of at least N words in a row,
-  that is, an unbroken chain of overlapping shared fingerprints. Two short copies that sit apart in the input do not
+  that is, an unbroken chain of overlapping shared fingerprints. Words are counted as tokens, so for Chinese and
+  Japanese each character counts as one. Two short copies that sit apart in the input do not
   add up.
 
 The query JSON is shown in the interface (expander) and returned by `check()`.
@@ -155,11 +156,13 @@ identifies a template or document type. So the index keeps them, and only the se
 That is why the filter is defined (with `"_none_"`) when the index is created.
 
 ### Guard an LLM (proxy)
-`proxy.py` is a small OpenAI-style endpoint (`POST /v1/chat/completions`) that checks the user messages of every
+`proxy.py` is a small OpenAI-style endpoint (`POST /v1/chat/completions`) that checks every
 request before it reaches the model (`guard.py`). A prompt that copies protected text gets HTTP 403 with the matched
 documents and the copied passages; anything else goes to the LLM through the Elasticsearch inference API, so the
-guard and the model share one API key. The whole conversation is checked, because chat clients resend the history.
-If the check fails (cluster down, text too long) the request is blocked; set `GUARD_FAIL_OPEN=true` to allow it.
+guard and the model share one API key. The text of every message is checked, whatever its role, because the client
+sends the whole history (system and assistant turns included) with each request. If the check itself fails (cluster
+down, text too long) the request gets HTTP 503; set `GUARD_FAIL_OPEN=true` to forward it when the cluster cannot be
+reached (text that is too long to check is always refused). Bad requests get 400, and model errors 502.
 
 ```bash
 python proxy.py
@@ -179,13 +182,14 @@ prompt.
   demo. Run `python load_data.py --recreate`.
 - **401 or 403 errors**: check `ES_URL` and `ES_API_KEY` in `.env`, and that the key has the privileges in step 2.
 - **"The text is too long"**: `_analyze` accepts at most 10,000 tokens, so check up to about 9,000 words at a time.
-  Long inputs can also reach the cluster's query clause limit (`indices.query.bool.max_clause_count`), which depends
-  on heap size; the demo reports it instead of failing.
+  Long inputs can also reach the cluster's limit on query clauses, which Elasticsearch derives from the node's heap
+  and search thread pool; the demo reports it instead of failing.
 
 ## Limits
 - Edits break every 8-word phrase that contains them, so heavy paraphrase, summaries, and translations are not
   detected.
 - Text shorter than 8 words produces no fingerprints.
+- `stopwords.py --apply` only adds phrases; use `--clear` first to shrink the list.
 - The boilerplate finder samples 500 documents (`sample=`), so very rare shared phrases can be missed.
 
 ## Sample data

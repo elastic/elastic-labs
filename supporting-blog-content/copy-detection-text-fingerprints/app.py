@@ -5,6 +5,7 @@ Run: streamlit run app.py
 import html
 
 import streamlit as st
+from elasticsearch import ApiError, TransportError
 
 import examples
 from boilerplate import common_phrases, set_stop_words, stop_words
@@ -67,7 +68,12 @@ def apply_stop_words(phrases: set[str]) -> None:
 
 idx = index_name()
 st.title("Copy check with stock Elasticsearch")
-if not client().indices.exists(index=idx):
+try:
+    exists = client().indices.exists(index=idx)
+except (SystemExit, ConnectionError, ApiError, TransportError) as e:
+    st.error(f"Cannot reach Elasticsearch: {e}. Check ES_URL and ES_API_KEY in .env.")
+    st.stop()
+if not exists:
     st.error(
         f"Index '{idx}' not found. Load the sample data first: `python load_data.py` "
         "(or set INDEX_NAME in .env)."

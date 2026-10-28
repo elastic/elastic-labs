@@ -11,9 +11,12 @@ load_dotenv(HERE / ".env", override=True)
 
 
 def get_client() -> Elasticsearch:
-    return Elasticsearch(
-        os.environ["ES_URL"], api_key=os.environ["ES_API_KEY"], request_timeout=120
-    )
+    url, key = os.environ.get("ES_URL", ""), os.environ.get("ES_API_KEY", "")
+    if not url.startswith("http") or not key or key.startswith("<"):
+        raise SystemExit(
+            "Set ES_URL (https://...:443) and ES_API_KEY in .env: copy env.example to .env and fill in both."
+        )
+    return Elasticsearch(url, api_key=key, request_timeout=120)
 
 
 def index_name() -> str:

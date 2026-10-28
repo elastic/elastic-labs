@@ -227,3 +227,32 @@ def test_guard_fails_closed_on_errors(env):
     msgs = [{"role": "user", "content": COPIED}]
     assert not screen(es, "no-such-index-xyz", msgs).allowed
     assert screen(es, "no-such-index-xyz", msgs, fail_open=True).allowed
+
+
+def test_verified_run_counts_tokens_for_chinese(env):
+    es, name = env
+    cjk = "这是一个机密文档，包含公司的内部战略计划和未发布的产品路线图，请勿外传"
+    es.index(index=name, id="cjk", document=doc("CJK", cjk, "own"), refresh=True)
+    try:
+        res = check(es, name, f"请看：{cjk}", "verified_run", 16)
+        assert [m.title for m in res.matches] == ["CJK"]
+        assert res.matches[0].longest_run >= 30  # one token per character
+    finally:
+        es.delete(index=name, id="cjk", refresh=True)
+
+
+def test_guard_checks_every_role_and_content_parts(env):
+    from guard import screen
+
+    es, name = env
+    for msgs in (
+        [{"role": "system", "content": COPIED}],
+        [{"role": "user", "content": [{"type": "input_text", "text": COPIED}]}],
+    ):
+        assert not screen(es, name, msgs, "min_shared", 3).allowed
+
+
+def test_unknown_rule_rejected(env):
+    es, name = env
+    with pytest.raises(ValueError):
+        check(es, name, COPIED, "bogus")

@@ -1,6 +1,6 @@
 """Check text against the protected index.
 
-  python cli.py "text to check"
+  python cli.py "text to check"                    # rule min_shared, N=3 (as in the UI)
   python cli.py --file email.txt --rule min_shared --n 3
   cat email.txt | python cli.py --rule any
   python cli.py --file email.txt --rule verified_run --n 16
@@ -22,7 +22,7 @@ def main():
     )
     ap.add_argument("text", nargs="?")
     ap.add_argument("--file")
-    ap.add_argument("--rule", choices=RULES, default="verified_run")
+    ap.add_argument("--rule", choices=RULES, default="min_shared")
     ap.add_argument(
         "--n",
         type=int,
@@ -37,8 +37,11 @@ def main():
     )
     a = ap.parse_args()
     if a.file:
-        with open(a.file, encoding="utf-8") as fh:
-            text = fh.read()
+        try:
+            with open(a.file, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as e:
+            ap.error(f"cannot read --file: {e}")
     elif a.text:
         text = a.text
     elif not sys.stdin.isatty():

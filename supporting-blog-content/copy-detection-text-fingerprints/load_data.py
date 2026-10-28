@@ -70,11 +70,15 @@ def cut_tokens(text: str, max_tokens: int = MAX_TOKENS) -> str:
 def folder_docs(folder: Path):
     for p in sorted(folder.rglob("*")):
         if p.suffix.lower() in (".txt", ".md") and p.is_file():
+            body = cut_tokens(p.read_text(encoding="utf-8", errors="replace"))
+            if len(body.split()) < 8:
+                print(f"  skipped {p.name}: fewer than 8 words")
+                continue
             yield {
                 "title": p.name,
                 "source": str(p),
                 "collection": "own",
-                "body": cut_tokens(p.read_text(encoding="utf-8", errors="replace")),
+                "body": body,
             }
 
 
@@ -91,6 +95,8 @@ def bulk_load(es, name: str, docs) -> int:
         count += ok
         if count % 200 == 0:
             print(f"  indexed {count}", flush=True)
+    if count % 200:
+        print(f"  indexed {count}", flush=True)
     es.indices.refresh(index=name)
     return count
 
