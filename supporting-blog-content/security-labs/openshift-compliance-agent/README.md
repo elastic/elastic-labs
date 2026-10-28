@@ -9,6 +9,8 @@
  ## Repository layout
 
  The repository is organized by target runtime: Openshift-compliance-agent/
+
+ ```text
   openshift-compliance-agent/
   ├── README.md                          # This file
   │
@@ -34,7 +36,7 @@
           ├── skills.txt                 # Dev Tools definitions for the 4 modular skills
           ├── agent.txt                  # Dev Tools definition for the compliance agent
           └── README.md                  # Agent Builder configuration order and testing guide
-
+```
  ---
 
  ## Architecture overview
