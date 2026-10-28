@@ -1,0 +1,275 @@
+POST kbn:/api/agent_builder/skills
+{
+  "id": "ocp-compliance-posture-summary",
+  "name": "ocp-compliance-posture-summary",
+  "description": "Summarize OpenShift compliance posture, scan execution status, check results, manual rule evaluations, and remediation states from latest-state indices (ospm-compliance_*-latest).",
+  "content": """## When to use this skill
+
+Use when the user:
+- Asks for overall compliance posture or scan status on an OpenShift cluster.
+- Asks which checks or rules are failing, passing, or manual.
+- Asks about manual rules and their custom automated evaluation status.
+- Asks what automated remediations exist and whether they are applied.
+
+## Available Tools
+
+1. `ocp_compliance.get_scan_status`: Queries `ospm-compliance_scans-latest`. Returns scan name, profile, overall result (`COMPLIANT`/`NON-COMPLIANT`), phase (`DONE`/`RUNNING`), total check count, creation time, and timestamps.
+2. `ocp_compliance.list_checks_by_status`: Queries `ospm-compliance_check_results-latest`. Returns individual checks for a given status (`FAIL`, `MANUAL`, or `PASS`), including scan name, rule name, severity, check object name, and custom scan annotations (`manual_scan_status` and `last_manual_scan`).
+3. `ocp_compliance.list_remediations`: Queries `ospm-compliance_remediations-latest`. Returns remediation name, application state (`Applied`, `Outdated`), apply boolean flag, target Kubernetes resource (kind and name), parent check, and timestamps.
+
+## Workflow Rules & Decision Tree
+
+### 1. Scope & Clarification
+- Cluster name is mandatory. If the user does not provide a cluster name, ask for it.
+- When the user asks for overall compliance posture: Call `ocp_compliance.get_scan_status` only. Do not preemptively dump check-level failures or remediations.
+- When the user asks "what is failing" without specifying a scan or severity: Ask the user to specify or confirm which scan, profile, or severity filter they want before running detailed check queries.
+
+### 2. Silent Exclusion of Custom Scans & Checks
+- Default behavior: Completely omit and suppress any scan or check result where `scan_name` contains `custom` (case-insensitive `*custom*`).
+- CRITICAL: Do NOT list, display, summarize, or mention excluded custom scans anywhere in the output (do NOT create an "Excluded scans" section or table). Filter them out completely silently.
+- Only show scans or checks with `custom` in their name if the user explicitly asks to include or show custom scans.
+
+### 3. Scan Status Requests
+- Call `ocp_compliance.get_scan_status` with `cluster`.
+- For each non-custom scan, report `profile`, `result` (`COMPLIANT` vs `NON-COMPLIANT`), `phase`, and total `check_count`.
+- Flag any scan where `phase` is not `DONE` (e.g. `RUNNING`), warning that results may be incomplete.
+
+### 4. Check Results (Failing, Passing, or Manual)
+- Call `ocp_compliance.list_checks_by_status` with `cluster` and the requested `status` (`FAIL`, `MANUAL`, or `PASS`).
+- For failures (`status="FAIL"`): Sort and group by severity (highest first). Show rule name, scan name, severity, and check object name. Omit checks belonging to custom scans.
+
+### 5. Manual Rules & Custom Automated Evaluations
+- When manual rules are requested, call `ocp_compliance.list_checks_by_status` with `status: "MANUAL"`.
+- For every manual check, inspect both the base OpenShift status and the custom evaluation annotations:
+  - Report the base status as `MANUAL`.
+  - If `manual_scan_status` contains a value (e.g. `PASS` or `FAIL`), present it separately as: "Custom Evaluation Status: <status> (last evaluated at <last_manual_scan>)".
+  - If both `manual_scan_status` and `last_manual_scan` are empty/null, explicitly state: "No manual scan annotation recorded" (indicating it still requires manual verification).
+  - Do not interpret or alter values beyond what the data fields show.
+
+### 6. Remediation State Requests
+- When the user asks what auto-remediations exist or whether they are applied, call `ocp_compliance.list_remediations` with `cluster`.
+- Correlate remediations to check results using `parent_check` (which matches the check's `check_object`).
+- Report `remediation` name, `application_state` (e.g. `Applied`), `apply` flag (`true`/`false`), and target Kubernetes resource (`target_kind`/`target_name`).
+
+## Output Presentation Standards
+
+- Begin with a concise one-line summary headline.
+- Present data in clean Markdown tables.
+- Do not ask follow-up questions or suggest unsolicited next steps once the question is answered.
+- If a query returns empty results or encounters an error, state it plainly. Never report a cluster as compliant without verified data.
+- Display all timestamps in the user's local time where available.""",
+  "referenced_content": [],
+  "tool_ids": [
+    "ocp_compliance.get_scan_status",
+    "ocp_compliance.list_checks_by_status",
+    "ocp_compliance.list_remediations"
+  ]
+}
+
+###
+
+POST kbn:/api/agent_builder/skills
+{
+  "id": "ocp-compliance-live-cluster-actions",
+  "name": "ocp-compliance-live-cluster-actions",
+  "description": "Execute live actions directly on an OpenShift cluster through connectors: read live ComplianceScan, ComplianceCheckResult, or ComplianceRemediation state, trigger a compliance rescan, or apply/revert a ComplianceRemediation. Use only when the user explicitly asks for live cluster actions. Every tool execution requires explicit user confirmation.",
+  "content": """## When to use this skill
+
+Use only when the user explicitly:
+- Asks to verify or inspect a compliance object directly against the live OpenShift cluster.
+- Asks to trigger or re-run a compliance scan.
+- Asks to apply or revert an automated remediation (`ComplianceRemediation`).
+
+Do not use this skill for questions that can be answered from ingested Elasticsearch data (such as general posture overview or rule lists); use the `ocp-compliance-posture-summary` skill for those.
+
+## Safety & Approval Guardrails
+
+- Every live cluster action (including live reads) requires explicit user confirmation before execution.
+- Scope requirement: The user must provide the cluster name and the exact target object name (scan name or remediation name). Never guess, default, or auto-generate object names.
+- Multi-cluster mapping: The cluster name provided by the user must match `orchestrator.cluster.name` exactly as recorded in scan results. The corresponding live connector is expected to share that same cluster name. If a workflow fails because a connector is missing or unknown for that cluster, inform the user that the live connector for that cluster does not exist and prompt them to create or configure it first.
+- Single target execution: Execute actions on one target at a time.
+- Guardrail on manual annotations: Never attempt to modify or act on objects managed by the custom manual-rule annotation workflow. Those annotations are strictly read-only.
+- Only apply native remediations: Only apply remediations that originate from OpenShift Compliance Operator scan data (`ComplianceRemediation` objects). Never design or execute custom configuration fixes.
+
+## Available Tools
+
+1. `ocp_compliance.live_read_state`: Workflow that queries the live OpenShift cluster for a `ComplianceScan`, `ComplianceCheckResult`, or `ComplianceRemediation`.
+2. `ocp_compliance.trigger_scan`: Workflow that triggers a rescan of an existing `ComplianceScan` on the live cluster.
+3. `ocp_compliance.set_remediation_state`: Workflow that sets the `apply` boolean flag (`true` to apply, `false` to revert) on a live `ComplianceRemediation`.
+
+## Execution Steps
+
+### 1. Verification of Scope
+- Confirm the cluster name, action type, and exact target resource name provided by the user.
+- Verify the cluster name matches `orchestrator.cluster.name` from scan data.
+- If any parameter is missing, ask the user to provide it before proceeding.
+
+### 2. Live Read Action (`live_read_state`)
+- When the user asks to verify live state:
+  - Ask for explicit user confirmation before executing the live read tool.
+  - Execute `ocp_compliance.live_read_state` with `cluster`, `resource_kind`, and `resource_name`.
+  - Report the live state clearly, noting any differences if previously compared to ingested data.
+
+### 3. Plan Presentation (Before Scan Trigger or Remediation)
+Before executing `trigger_scan` or `set_remediation_state`, present a detailed execution plan to the user containing:
+- Action: (Trigger Scan / Apply Remediation / Revert Remediation)
+- Target: Exact resource name and cluster.
+- Impact & Workload:
+  - For `trigger_scan`: Warn that the scan consumes cluster compute resources and produces new results, and that ingested Elasticsearch data will reflect changes only after the next ingest cycle.
+  - For `set_remediation_state`: Name the target Kubernetes object being modified. **CRITICAL:** If the remediation is of kind `MachineConfig` (or targets node configuration), explicitly warn the user: "Applying this remediation modifies node configuration and can trigger a rolling reboot of cluster nodes."
+  - Reversion: State how the action can be reverted (`apply: false`).
+
+### 4. Mandatory User Confirmation
+- Ask the user: "Do you want to proceed with this action?"
+- Proceed ONLY on an explicit affirmative response (e.g. "yes", "proceed"). Any ambiguous response or silence is treated as a cancellation.
+
+### 5. Execution & Verification
+- Execute the corresponding workflow tool.
+- Report the resulting state (before and after state).
+- Remind the user that while the live cluster state is updated immediately, ingested Elasticsearch dashboards and indices will reflect changes after the next ingestion poll.
+
+## Edge Cases & Error Handling
+
+- Missing or Unconfigured Connector: If the workflow returns an unknown cluster or connector error, explain clearly: "A live connector for cluster '<cluster_name>' does not exist. Please configure the connector in Kibana first before running live actions on this cluster."
+- Workflow error or failure: Report the exact failure message returned by the tool. Never assume an action succeeded if the tool returns an error.
+- Multiple targets requested: If the user asks to apply multiple remediations, present the plan for each individually and require confirmation for each, or obtain explicit confirmation for the entire named list.
+- Non-compliance requests: If the user asks to execute general Kubernetes administrative commands outside the OpenShift Compliance Operator, decline as out of scope.""",
+  "referenced_content": [],
+  "tool_ids": [
+    "ocp_compliance.live_read_state",
+    "ocp_compliance.trigger_scan",
+    "ocp_compliance.set_remediation_state"
+  ]
+}
+
+###
+
+POST kbn:/api/agent_builder/skills
+{
+  "id": "ocp-compliance-reporting",
+  "name": "ocp-compliance-reporting",
+  "description": "Generate formal OpenShift compliance reports, audit-ready summaries, historical trends, and scan-over-scan comparisons using latest-state indices and raw compliance data streams. Proposes ES|QL queries for Kibana dashboard panels.",
+  "content": """## When to use this skill
+
+Use when the user:
+- Asks for a formal compliance report or audit-ready summary for one or more clusters.
+- Asks for historical trends, scan-over-scan comparisons, or changes over time (e.g. daily/weekly changes, newly failing or newly passing checks).
+- Asks for dashboard visualizations or queries to build panels for OpenShift compliance.
+
+Do not use for quick conversational posture checks (use `ocp-compliance-posture-summary`), deep root-cause troubleshooting (use `ocp-compliance-failure-investigation`), or live cluster modifications (use `ocp-compliance-live-cluster-actions`).
+
+## Available Tools
+
+1. `ocp_compliance.get_scan_status`: Returns current scan results, phase (`DONE` vs `RUNNING`), profile, and total check count per scan.
+2. `ocp_compliance.list_checks_by_status`: Returns individual checks by status (`FAIL`, `MANUAL`, `PASS`), including severity, check object name, and custom scan evaluation annotations for manual rules.
+3. `ocp_compliance.list_remediations`: Returns automated remediations, application state (`Applied`), apply flag, and parent check links.
+4. `ocp_compliance.search_compliance_history`: Searches raw time-series compliance data streams (`logs-openshift_security_posture_management.compliance_*-default`) for historical trends, flapping, and scan-over-scan comparisons.
+
+## Workflow & Reporting Standards
+
+### 1. Scope & Prerequisites
+- Clarify audience if not specified: Administrator summary (technical details) vs Auditor report (executive metrics, control references, pass/fail ratios).
+- Cluster name is required (matches `orchestrator.cluster.name`).
+- For historical trends, confirm the time range (e.g., 7 days, 30 days).
+
+### 2. Silent Exclusion of Custom Scans
+- Default behavior: Completely omit and suppress any scan or check result where `scan_name` contains `custom` (case-insensitive `*custom*`).
+- CRITICAL: Do NOT list, display, summarize, or mention excluded custom scans anywhere in the output (do NOT create an "Excluded scans" section or table). Filter them out completely silently.
+- Only include scans with `custom` in their name if the user explicitly requests custom scans.
+
+### 3. Report Data Assembly
+- Scan Overview: Call `ocp_compliance.get_scan_status` to report overall result (`COMPLIANT`/`NON-COMPLIANT`), phase, and total checks. Flag any scan whose phase is not `DONE`. Omit custom scans completely.
+- Check Breakdowns: Call `ocp_compliance.list_checks_by_status` for failures (`status: "FAIL"`) and manual rules (`status: "MANUAL"`). Summarize counts grouped by severity and profile.
+- Manual Rules Evaluation: For manual checks, report base status (`MANUAL`) alongside custom automated evaluation (`manual_scan_status`: `PASS`/`FAIL` and `last_manual_scan`). If absent, report "no manual scan annotation recorded".
+- Remediation Posture: Call `ocp_compliance.list_remediations` to report how many failed controls have automated remediations available and how many are in `application_state: Applied`.
+- Historical Trends (if requested): Call `ocp_compliance.search_compliance_history` across the time window. Summarize:
+  - Newly failing rules (passed previously, now failing)
+  - Newly passing rules (failed previously, now resolved)
+  - Flapping controls (frequently transitioning between PASS and FAIL)
+  - Collapse repeated ingestion polling events before calculating trends.
+
+### 4. Dashboards & Visualizations Requests
+- The agent does not create Kibana saved objects directly.
+- When the user asks for a dashboard or visualization:
+  - Reference existing dashboards to align with: "[OpenShift Compliance] Posture Overview", "[OpenShift Compliance] Auto Remediations", and "[OpenShift Compliance] Overall Results".
+  - Provide ready-to-use ES|QL queries that the user can paste directly into Kibana Lens or ES|QL panels.
+
+### 5. Report Structure & Presentation
+- Executive Headline: One-line summary of cluster compliance health and overall score.
+- Executive Summary Table: Cluster name, profiles evaluated, overall status, total checks, passed, failed, and manual review counts.
+- High-Severity Failures Table: Rule name, scan profile, severity, check object, and remediation availability.
+- Remediation Table: Available auto-remediations and current application state (`Applied` vs `Unapplied`).
+- Timestamp Reporting: Display all dates in user local time, and cite the data source index and time range for transparency.""",
+  "referenced_content": [],
+  "tool_ids": [
+    "ocp_compliance.get_scan_status",
+    "ocp_compliance.list_checks_by_status",
+    "ocp_compliance.list_remediations",
+    "ocp_compliance.search_compliance_history"
+  ]
+}
+
+###
+POST kbn:/api/agent_builder/skills
+{
+  "id": "ocp-compliance-failure-investigation",
+  "name": "ocp-compliance-failure-investigation",
+  "description": "Investigate why a specific OpenShift compliance check failed or changed, identify the exact violating application or workload using rule details and live read-only cluster queries, and correlate with Kubernetes audit logs to find who made the change.",
+  "content": """## When to use this skill
+
+Use when the user:
+- Asks why a specific compliance rule or check failed.
+- Wants to know who modified a resource or who caused a rule (like automount token or SCC) to fail.
+- Wants to know what specific application, pod, namespace, or resource on the cluster caused a compliance rule to fail.
+- Asks when a check started failing or whether it flapped between PASS and FAIL over time.
+
+Do not use for general posture overviews (use `ocp-compliance-posture-summary`), formal reports (use `ocp-compliance-reporting`), or live cluster modifications (use `ocp-compliance-live-cluster-actions`).
+
+## Available Tools
+
+1. `ocp_compliance.get_rule_details`: Queries latest-state check results for a specific rule on a cluster. Returns rule description, status, severity, check object name, failure message, scan instructions, and scan-provided remediation text. Does NOT require a time window.
+2. `ocp_compliance.query_live_workload`: Executes a strictly read-only HTTP GET request against the live OpenShift cluster API to inspect live workloads.
+3. `ocp_compliance.search_audit_logs`: Searches Kubernetes audit logs (`logs-kubernetes.audit_logs-*`) for write actions (create, update, patch, delete) to identify WHO made the change.
+4. `ocp_compliance.search_compliance_history`: Searches raw time-series compliance data streams.
+5. `ocp_compliance.list_checks_by_status`: Optional lookup for checks on a cluster.
+
+## Investigation Workflow
+
+### 1. Scope & Prerequisites
+- When asked why a rule failed or what application caused it: Only `cluster` and `rule_name` are required.
+- When asked who changed or modified a resource: Cluster and resource identifier are required. Search audit logs within an appropriate window.
+- Cluster name must match `orchestrator.cluster.name`.
+
+### 2. Identifying the Violating Workload & User Attribution
+- Call `ocp_compliance.get_rule_details` to understand what the rule checks and if the violation is in `failure_message`.
+- If identifying the offending workload: Call `ocp_compliance.query_live_workload` with read-only GET (e.g. `/api/v1/namespaces/<ns>/serviceaccounts` or `/api/v1/pods`).
+- If attributing WHO made the change:
+  - Call `ocp_compliance.search_audit_logs`.
+  - Filter for the specific resource (`serviceaccounts` or `pods`), name, and namespace.
+  - Filter by verbs: `create`, `update`, `patch`.
+  - Extract:
+    - User: `kubernetes.audit.user.username` (e.g. `kube:admin` or user email)
+    - Timestamp: `kubernetes.audit.stageTimestamp`
+    - Action: `verb`
+    - Modified spec details if `requestObject` is present.
+
+### 3. Report Findings
+- Clearly report:
+  - What failed: The specific rule requirement (e.g. automountServiceAccountToken set to true).
+  - Offending Resource: Exact resource name and namespace.
+  - Attribution: Who modified it (`user.username`) and the exact timestamp from the audit log.
+  - Safety reminder: Provide the `oc` fix command for the OpenShift administrator to execute.
+
+## Safety & Presentation Rules
+
+- STRICTLY READ-ONLY: Never modify or patch cluster workloads.
+- Provide remediation commands for the OpenShift administrator to review and execute manually.""",
+  "referenced_content": [],
+  "tool_ids": [
+    "ocp_compliance.get_rule_details",
+    "ocp_compliance.query_live_workload",
+    "ocp_compliance.search_audit_logs",
+    "ocp_compliance.search_compliance_history",
+    "ocp_compliance.list_checks_by_status"
+  ]
+}

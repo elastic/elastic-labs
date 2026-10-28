@@ -1,0 +1,542 @@
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-rbac-least-privilege
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_rbac_least_privilege
+  title: "Ensure only required privilege is assigned to accounts"
+  severity: high
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    clusterrolebindings.items.all(crb,
+      crb.roleRef.name.startsWith("system:") ||
+      !clusterroles.items.exists(cr,
+        cr.metadata.name == crb.roleRef.name &&
+        cr.rules.exists(r, ("*" in r.resources) || ("*" in r.verbs) || ("*" in r.apiGroups))
+      )
+    )
+  failureReason: "A non-system ClusterRoleBinding grants a ClusterRole containing a wildcard rule"
+  inputs:
+    - name: clusterrolebindings
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterrolebindings
+    - name: clusterroles
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterroles
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-rbac-wildcard-use
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_rbac_wildcard_use
+  title: "Minimize wildcard use in Roles and ClusterRoles"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    clusterroles.items.all(cr,
+      cr.metadata.name.startsWith("system:") ||
+      !cr.rules.exists(r,
+        ("*" in r.resources) || ("*" in r.verbs) || ("*" in r.apiGroups)
+      )
+    )
+  failureReason: "A non-system ClusterRole uses a wildcard in resources, verbs, or apiGroups"
+  inputs:
+    - name: clusterroles
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterroles
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-rbac-limit-cluster-admin
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_rbac_limit_cluster_admin
+  title: "Minimize access to the cluster-admin role"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    clusterrolebindings.items.all(crb,
+      crb.roleRef.name != "cluster-admin" ||
+      (has(crb.subjects) && crb.subjects.all(s, s.name.startsWith("system:")))
+    )
+  failureReason: "A non-system subject is bound to cluster-admin"
+  inputs:
+    - name: clusterrolebindings
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterrolebindings
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-rbac-limit-secrets-access
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_rbac_limit_secrets_access
+  title: "Minimize access to secrets"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    clusterroles.items.all(cr,
+      cr.metadata.name.startsWith("system:") ||
+      !cr.rules.exists(r,
+        has(r.resources) && "secrets" in r.resources &&
+        has(r.verbs) && r.verbs.exists(v, v in ["get","list","watch"])
+      )
+    )
+  failureReason: "A non-system ClusterRole grants read access to secrets"
+  inputs:
+    - name: clusterroles
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterroles
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-rbac-pod-creation-access
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_rbac_pod_creation_access
+  title: "Minimize access to create pods"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    clusterroles.items.all(cr,
+      cr.metadata.name.startsWith("system:") ||
+      !cr.rules.exists(r,
+        has(r.resources) && "pods" in r.resources &&
+        has(r.verbs) && "create" in r.verbs
+      )
+    )
+  failureReason: "A non-system ClusterRole grants create access on pods"
+  inputs:
+    - name: clusterroles
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterroles
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-root-containers
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_root_containers
+  title: "Minimize the admission of root containers"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      (has(s.runAsUser) && s.runAsUser.type != "RunAsAny")
+    )
+  failureReason: "A non-default SCC permits running as any user, including root"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-privileged-containers
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_privileged_containers
+  title: "Minimize the admission of privileged containers"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      !has(s.allowPrivilegedContainer) ||
+      s.allowPrivilegedContainer == false
+    )
+  failureReason: "A non-default SCC allows privileged containers"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-privilege-escalation
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_privilege_escalation
+  title: "Minimize the admission of containers with allowPrivilegeEscalation"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      !has(s.allowPrivilegeEscalation) ||
+      s.allowPrivilegeEscalation == false
+    )
+  failureReason: "A non-default SCC allows privilege escalation"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-process-id-namespace
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_process_id_namespace
+  title: "Minimize the admission of containers sharing the host process ID namespace"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      !has(s.allowHostPID) ||
+      s.allowHostPID == false
+    )
+  failureReason: "A non-default SCC allows sharing the host PID namespace"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-network-namespace
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_network_namespace
+  title: "Minimize the admission of containers sharing the host network namespace"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      !has(s.allowHostNetwork) ||
+      s.allowHostNetwork == false
+    )
+  failureReason: "A non-default SCC allows sharing the host network namespace"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-ipc-namespace
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_ipc_namespace
+  title: "Minimize the admission of containers sharing the host IPC namespace"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      !has(s.allowHostIPC) ||
+      s.allowHostIPC == false
+    )
+  failureReason: "A non-default SCC allows sharing the host IPC namespace"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-drop-container-capabilities
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_drop_container_capabilities
+  title: "Minimize the admission of containers with added capabilities"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      (has(s.requiredDropCapabilities) && "ALL" in s.requiredDropCapabilities)
+    )
+  failureReason: "A non-default SCC does not require dropping ALL capabilities"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-scc-limit-net-raw-capability
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_scc_limit_net_raw_capability
+  title: "Minimize the admission of containers with the NET_RAW capability"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    sccs.items.all(s,
+      s.metadata.name == "privileged" ||
+      (has(s.requiredDropCapabilities) &&
+       ("ALL" in s.requiredDropCapabilities || "NET_RAW" in s.requiredDropCapabilities))
+    )
+  failureReason: "A non-default SCC does not drop the NET_RAW capability"
+  inputs:
+    - name: sccs
+      kubernetesInputSpec:
+        apiVersion: security.openshift.io/v1
+        resource: securitycontextconstraints
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-general-apply-scc
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_general_apply_scc
+  title: "Verify appropriate SCCs are applied to each pod"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    pods.items.all(p,
+      p.metadata.namespace.startsWith("openshift-") ||
+      p.metadata.namespace.startsWith("kube-") ||
+      !has(p.metadata.annotations) ||
+      !("openshift.io/scc" in p.metadata.annotations) ||
+      !(p.metadata.annotations["openshift.io/scc"] in ["privileged", "anyuid"])
+    )
+  failureReason: "A pod outside a system namespace runs under the privileged or anyuid SCC"
+  inputs:
+    - name: pods
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: pods
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-general-default-namespace-use
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_general_default_namespace_use
+  title: "Ensure only expected resources exist in the default namespace"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    pods.items.size() == 0 &&
+    deployments.items.size() == 0 &&
+    services.items.all(s, s.metadata.name == "kubernetes")
+  failureReason: "Unexpected workloads or services exist in the default namespace"
+  inputs:
+    - name: pods
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: pods
+        resourceNamespace: default
+    - name: deployments
+      kubernetesInputSpec:
+        apiVersion: apps/v1
+        resource: deployments
+        resourceNamespace: default
+    - name: services
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: services
+        resourceNamespace: default
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-general-namespaces-in-use
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_general_namespaces_in_use
+  title: "Ensure only approved namespaces are in use"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    namespaces.items.all(ns,
+      ns.metadata.name.startsWith("openshift-") ||
+      ns.metadata.name.startsWith("kube-") ||
+      ns.metadata.name == "default" ||
+      ns.metadata.name.startsWith("appcode-")
+    )
+  failureReason: "A namespace exists that doesn't match the openshift-/kube-/default/appcode- naming convention"
+  inputs:
+    - name: namespaces
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: namespaces
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-general-configure-imagepolicywebhook
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_general_configure_imagepolicywebhook
+  title: "Configure image provenance using ImagePolicyWebHook"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    has(images.spec.registrySources) &&
+    (has(images.spec.registrySources.allowedRegistries) ||
+     has(images.spec.registrySources.blockedRegistries))
+  failureReason: "No allowed/blocked registry list is configured on image.config.openshift.io/cluster"
+  inputs:
+    - name: images
+      kubernetesInputSpec:
+        apiVersion: config.openshift.io/v1
+        resource: images
+        resourceName: cluster
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-accounts-unique-service-account
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_accounts_unique_service_account
+  title: "Ensure workloads use dedicated service accounts, not default"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    clusterrolebindings.items.all(crb,
+      !has(crb.subjects) ||
+      !crb.subjects.exists(s, s.kind == "ServiceAccount" && s.name == "default")
+    )
+  failureReason: "A ClusterRoleBinding grants a role to a 'default' service account"
+  inputs:
+    - name: clusterrolebindings
+      kubernetesInputSpec:
+        apiVersion: rbac.authorization.k8s.io/v1
+        resource: clusterrolebindings
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-accounts-restrict-service-account-tokens
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_accounts_restrict_service_account_tokens
+  title: "Service account tokens should not be automounted unless required"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    pods.items.all(p,
+      !has(p.spec.automountServiceAccountToken) ||
+      p.spec.automountServiceAccountToken == false
+    )
+  failureReason: "A pod has automountServiceAccountToken set to true"
+  inputs:
+    - name: pods
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: pods
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-secrets-no-environment-variables
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_secrets_no_environment_variables
+  title: "Secrets should not be mounted as environment variables"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    pods.items.all(p,
+      !has(p.spec.containers) ||
+      p.spec.containers.all(c,
+        !has(c.env) ||
+        !c.env.exists(e, has(e.valueFrom) && has(e.valueFrom.secretKeyRef))
+      )
+    )
+  failureReason: "A running pod has a container with a secret mounted as an environment variable"
+  inputs:
+    - name: pods
+      kubernetesInputSpec:
+        apiVersion: v1
+        resource: pods
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-secrets-consider-external-storage
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_secrets_consider_external_storage
+  title: "Consider external secrets storage"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    subscriptions.items.exists(s,
+      s.spec.name.contains("vault") || s.spec.name.contains("external-secrets")
+    )
+  failureReason: "No external secrets management operator (Vault, External Secrets) was found installed"
+  inputs:
+    - name: subscriptions
+      kubernetesInputSpec:
+        apiVersion: operators.coreos.com/v1alpha1
+        resource: subscriptions
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: CustomRule
+metadata:
+  name: custom-alert-receiver-configured
+  namespace: openshift-compliance
+spec:
+  id: xccdf_org.ssgproject.content_rule_alert_receiver_configured
+  title: "Ensure an Alertmanager receiver is configured"
+  severity: medium
+  checkType: Platform
+  scannerType: CEL
+  expression: |
+    alertmanagerconfigs.items.exists(a,
+      has(a.spec.receivers) && a.spec.receivers.size() > 0
+    )
+  failureReason: "No Alertmanager receiver is configured"
+  inputs:
+    - name: alertmanagerconfigs
+      kubernetesInputSpec:
+        apiVersion: monitoring.coreos.com/v1beta1
+        resource: alertmanagerconfigs

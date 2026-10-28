@@ -1,0 +1,242 @@
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.list_checks_by_status",
+  "type": "esql",
+  "description": "Returns individual compliance check results based on the cluster name and status provided from the compliance check results data ingested into the latest-state index. Use this tool when the user asks which checks failed, passed, or are manual, or to inspect the custom scan evaluation of manual rules via manual_scan_status (PASS/FAIL) and last_manual_scan timestamp. Requires a cluster name and status. Returns at most 100 checks.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "query": """FROM ospm-compliance_check_results-latest
+| WHERE orchestrator.cluster.name == ?cluster
+    AND openshift_security_posture_management.compliance_check_results.status == ?status
+| EVAL rule_name = rule.name,
+       scan_name = openshift_security_posture_management.compliance_check_results.labels.scan_name,
+       status = openshift_security_posture_management.compliance_check_results.status,
+       severity = openshift_security_posture_management.compliance_check_results.severity,
+       check_object = openshift_security_posture_management.compliance_check_results.metadata.name,
+       last_scanned = `openshift_security_posture_management.compliance_check_results.annotations.compliance_openshift_io_last-scanned-timestamp`,
+       manual_scan_status = `openshift_security_posture_management.compliance_check_results.annotations.elastic_co_manual-scan-status`,
+       last_manual_scan = `openshift_security_posture_management.compliance_check_results.annotations.elastic_co_last-scan-timestamp`
+| KEEP scan_name, rule_name, status, severity, check_object, last_scanned, manual_scan_status, last_manual_scan, @timestamp, event.ingested
+| SORT severity DESC, rule_name ASC
+| LIMIT 100""",
+    "params": {
+      "cluster": {
+        "type": "string",
+        "description": "OCP cluster name tagged with the compliance check results, check the field orchestrator.cluster.name",
+        "optional": false
+      },
+      "status": {
+        "type": "string",
+        "description": "Compliance check result status such as FAIL, MANUAL, or PASS, check the field openshift_security_posture_management.compliance_check_results.status",
+        "optional": false
+      }
+    }
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.list_remediations",
+  "type": "esql",
+  "description": "Returns compliance remediations based on the cluster name provided from the compliance remediations data ingested into the latest-state index. Use this tool when the user asks what auto-remediations exist and whether they are applied. Requires a cluster name. Returns at most 100 remediations.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "query": """FROM ospm-compliance_remediations-latest
+| WHERE orchestrator.cluster.name == ?cluster
+| EVAL remediation = orchestrator.resource.name,
+       application_state = openshift_security_posture_management.compliance_remediations.status.application_state,
+       apply = openshift_security_posture_management.compliance_remediations.spec.apply,
+       target_kind = openshift_security_posture_management.compliance_remediations.spec.current.kind,
+       target_name = openshift_security_posture_management.compliance_remediations.spec.current.metadata.name,
+       parent_check = openshift_security_posture_management.compliance_remediations.metadata.owner_references.name,
+       remediation_created = openshift_security_posture_management.compliance_remediations.metadata.creation_timestamp
+| KEEP remediation, application_state, apply, target_kind, target_name, parent_check, remediation_created, @timestamp, event.ingested
+| SORT application_state ASC, remediation ASC
+| LIMIT 100""",
+    "params": {
+      "cluster": {
+        "type": "string",
+        "description": "OCP cluster name tagged with the compliance remediations, check the field orchestrator.cluster.name",
+        "optional": false
+      }
+    }
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.get_scan_status",
+  "type": "esql",
+  "description": "Returns the current status of compliance scan results based on the cluster name provided from the compliance scan data ingested into the latest-state index. Use this tool when the user asks about overall scan results. Requires a cluster name. Returns at most 50 scans.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "query": """FROM ospm-compliance_scans-latest
+| WHERE orchestrator.cluster.name == ?cluster
+| EVAL scan_name = openshift_security_posture_management.compliance_scans.scan.name,
+       profile = openshift_security_posture_management.compliance_scans.scan.profile,
+       result = openshift_security_posture_management.compliance_scans.status.result,
+       phase = openshift_security_posture_management.compliance_scans.status.phase,
+       check_count = `openshift_security_posture_management.compliance_scans.metadata.annotations.compliance_openshift_io_check-count`,
+       scan_created = openshift_security_posture_management.compliance_scans.metadata.creation_timestamp
+| KEEP scan_name, profile, result, phase, check_count, scan_created, @timestamp, event.ingested
+| SORT scan_name
+| LIMIT 50""",
+    "params": {
+      "cluster": {
+        "type": "string",
+        "description": "OCP cluster name tagged with the compliance scans, check the field orchestrator.cluster.name",
+        "optional": false
+      }
+    }
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.set_remediation_state",
+  "type": "workflow",
+  "description": "Applies or reverts one ComplianceRemediation on the live OpenShift cluster by setting its apply flag. Use only when the user explicitly asks to apply or revert a remediation from scan data, after the plan and impact have been shown. Requires cluster, remediation name, and apply (true to apply, false to revert). State-changing: applying a MachineConfig-type remediation can trigger a rolling node reboot.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "workflow_id": "openshift-compliance-set-remediation-state",
+    "wait_for_completion": true
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.search_compliance_history",
+  "type": "index_search",
+  "description": "Searches raw compliance event history from logs-openshift_security_posture_management.compliance_*-default as ingested over time. Use to determine when a check started failing, whether it flapped between PASS and FAIL, and to inspect previous scan cycles. Queries raw time-series data streams.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "pattern": "logs-openshift_security_posture_management.compliance_*-default",
+    "row_limit": 100,
+    "custom_instructions": "Fields are keyword type: do not use .keyword. Always filter on cluster (orchestrator.cluster.name) and a time range, sort by @timestamp, and include @timestamp and event.ingested in results."
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.query_live_workload",
+  "type": "workflow",
+  "description": "Executes a strictly read-only HTTP GET request against the live OpenShift cluster API to inspect workloads, pods, SCCs, or RoleBindings to identify which specific application caused a compliance rule to fail. Read-only: cannot modify any cluster resources. Requires cluster and api_path.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "workflow_id": "openshift-compliance-query-live-workload",
+    "wait_for_completion": true
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.live_read_state",
+  "type": "workflow",
+  "description": "Reads the live state of one ComplianceScan, ComplianceCheckResult, or ComplianceRemediation directly from the OpenShift cluster. Use only when the user explicitly asks to verify against the live cluster. Read-only. Requires cluster, resource_kind, and resource_name.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "workflow_id": "openshift-compliance-read-live-state",
+    "wait_for_completion": true
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.trigger_scan",
+  "type": "workflow",
+  "description": "Triggers a re-run of one ComplianceScan on the live OpenShift cluster. Use only when the user explicitly asks to run or re-run a scan, after the plan has been shown. Requires cluster and scan name. State-changing: consumes cluster resources and produces new results.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "workflow_id": "openshift-compliance-trigger-scan",
+    "wait_for_completion": true
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.get_rule_details",
+  "type": "esql",
+  "description": "Returns full details for a specific compliance rule on a cluster from the latest-state index, including rule description, failure message, severity, last-scanned timestamp, and scan-provided remediation instructions. Matches by rule name or check object name. Requires cluster and rule_name.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "query": """FROM ospm-compliance_check_results-latest
+| WHERE orchestrator.cluster.name == ?cluster
+    AND (rule.name == ?rule_name 
+         OR openshift_security_posture_management.compliance_check_results.metadata.name == ?rule_name
+         OR openshift_security_posture_management.compliance_check_results.annotations.compliance_openshift_io_rule == ?rule_name)
+| EVAL rule_name = rule.name,
+       scan_name = openshift_security_posture_management.compliance_check_results.labels.scan_name,
+       status = openshift_security_posture_management.compliance_check_results.status,
+       severity = openshift_security_posture_management.compliance_check_results.severity,
+       check_object = openshift_security_posture_management.compliance_check_results.metadata.name,
+       failure_message = message,
+       rule_description = rule.description,
+       rule_remediation = openshift_security_posture_management.compliance_check_results.rule.remediation,
+       last_scanned = `openshift_security_posture_management.compliance_check_results.annotations.compliance_openshift_io_last-scanned-timestamp`
+| KEEP scan_name, rule_name, status, severity, check_object, failure_message, rule_description, rule_remediation, last_scanned, @timestamp
+| LIMIT 5""",
+    "params": {
+      "cluster": {
+        "type": "string",
+        "description": "OCP cluster name, for example ocp-dev",
+        "optional": false
+      },
+      "rule_name": {
+        "type": "string",
+        "description": "Rule name, rule ID, or check object name (e.g. ocp4-cis-accounts-restrict-service-account-tokens or accounts-restrict-service-account-tokens)",
+        "optional": false
+      }
+    }
+  }
+}
+
+###
+
+POST kbn:/api/agent_builder/tools
+{
+  "id": "ocp_compliance.search_audit_logs",
+  "type": "index_search",
+  "description": "Searches Kubernetes audit logs (logs-kubernetes.audit_logs-*) for cluster actions that could have caused a compliance check to fail, such as creating, updating, or deleting pods, service accounts, RBAC, or workload controllers. Use during failure investigation after the failing check, affected resource, and time window are identified.",
+  "tags": [
+    "openshift-compliance"
+  ],
+  "configuration": {
+    "pattern": "logs-kubernetes.audit_logs-*",
+    "row_limit": 50,
+    "custom_instructions": "Event time is kubernetes.audit.stageTimestamp, not @timestamp. Always filter on stageTimestamp within the requested window, and filter cluster using either tags == '<cluster>' or orchestrator.cluster.name == '<cluster>'. Filter for actions: kubernetes.audit.verb IN ('create', 'update', 'patch', 'delete'). Exclude system users (system:*) unless relevant. Check kubernetes.audit.requestObject if available in the event; if request bodies are not logged, rely on metadata fields (verb, objectRef, user.username, responseStatus.code)."
+  }
+}
