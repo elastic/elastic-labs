@@ -1,0 +1,14 @@
+# EDOT Collector (built into Elastic Agent since 9.5) reading data/checkout-api.log.
+name: logs-for-problem-solving
+services:
+  edot-collector:
+    image: docker.elastic.co/elastic-agent/elastic-agent:${STACK_VERSION:-9.5.4}
+    command: ["--config", "/etc/otelcol-config.yml"]
+    user: "0:0"
+    environment:
+      ELASTIC_AGENT_OTEL: "true"
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL}
+      ELASTICSEARCH_API_KEY: ${ELASTICSEARCH_API_KEY}
+    volumes:
+      - ./otel-config.yaml:/etc/otelcol-config.yml:ro
+      - ./data:/data:ro
