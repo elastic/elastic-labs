@@ -1,0 +1,76 @@
+---
+apiVersion: compliance.openshift.io/v1alpha1
+kind: TailoredProfile
+metadata:
+  name: custom-ocp4-manual-rules
+  namespace: openshift-compliance
+spec:
+  title: "Custom CEL automation for shared manual rules (cis/e8/high)"
+  description: "Each rule is evaluated once; rationale documents which native profiles it should be patched back to."
+  enableRules:
+    - name: custom-rbac-wildcard-use
+      kind: CustomRule
+      rationale: "applies-to: cis,e8,high"
+    - name: custom-rbac-limit-cluster-admin
+      kind: CustomRule
+      rationale: "applies-to: cis,e8,high"
+    - name: custom-rbac-pod-creation-access
+      kind: CustomRule
+      rationale: "applies-to: cis,e8,high"
+    - name: custom-scc-limit-privileged-containers
+      kind: CustomRule
+      rationale: "applies-to: cis,e8,high"
+    - name: custom-scc-limit-privilege-escalation
+      kind: CustomRule
+      rationale: "applies-to: cis,e8,high"
+    - name: custom-scc-limit-root-containers
+      kind: CustomRule
+      rationale: "applies-to: cis,e8,high"
+    - name: custom-rbac-least-privilege
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-rbac-limit-secrets-access
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-scc-limit-process-id-namespace
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-scc-limit-network-namespace
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-scc-limit-ipc-namespace
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-scc-drop-container-capabilities
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-scc-limit-net-raw-capability
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-general-apply-scc
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-general-default-namespace-use
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-general-namespaces-in-use
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-accounts-unique-service-account
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-accounts-restrict-service-account-tokens
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-secrets-no-environment-variables
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-secrets-consider-external-storage
+      kind: CustomRule
+      rationale: "applies-to: cis,high"
+    - name: custom-general-configure-imagepolicywebhook
+      kind: CustomRule
+      rationale: "applies-to: high"
+    - name: custom-alert-receiver-configured
+      kind: CustomRule
+      rationale: "applies-to: high"

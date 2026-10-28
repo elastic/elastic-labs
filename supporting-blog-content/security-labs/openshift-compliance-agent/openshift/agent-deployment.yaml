@@ -1,0 +1,118 @@
+---
+# Elastic Agent deployment for the OpenShift Security Posture Management (OSPM) integration.
+# This agent only polls the compliance.openshift.io API (compliancecheckresults,
+# complianceremediations, compliancescans) via the httpjson input — it does not need
+# host-level log/metric collection, so it runs as a single-replica Deployment (not a
+# DaemonSet), with no hostNetwork/hostPID/privileged access and no host path mounts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elastic-agent-ocp
+  labels:
+    app.kubernetes.io/name: elastic-agent
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agent-state
+  namespace: elastic-agent-ocp
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elastic-agent
+  namespace: elastic-agent-ocp
+  labels:
+    app.kubernetes.io/name: elastic-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: elastic-agent-ospm
+  labels:
+    app.kubernetes.io/name: elastic-agent
+rules:
+  # Only what the OSPM httpjson input needs: read access to the compliance CRDs
+  # exposed by the OpenShift Compliance Operator via the Kubernetes API server.
+  - apiGroups: ["compliance.openshift.io"]
+    resources:
+      - compliancecheckresults
+      - complianceremediations
+      - compliancescans
+      - rules
+    verbs: ["get", "list", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: elastic-agent-ospm
+  labels:
+    app.kubernetes.io/name: elastic-agent
+subjects:
+  - kind: ServiceAccount
+    name: elastic-agent
+    namespace: elastic-agent-ocp
+roleRef:
+  kind: ClusterRole
+  name: elastic-agent-ospm
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elastic-agent
+  namespace: elastic-agent-ocp
+  labels:
+    app.kubernetes.io/name: elastic-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elastic-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: elastic-agent
+    spec:
+      serviceAccountName: elastic-agent
+      containers:
+        - name: elastic-agent
+          image: docker.elastic.co/elastic-agent/elastic-agent:9.5.5
+          env:
+            - name: CLUSTER_NAME
+              value: "<replace-with-cluster-name>"
+            # Set to 1 for enrollment into Fleet server. If not set, Elastic Agent runs standalone.
+            - name: FLEET_ENROLL
+              value: "1"
+            # Set to true to communicate with Fleet with either insecure HTTP or unverified HTTPS.
+            - name: FLEET_INSECURE
+              value: "false"
+            # Fleet Server URL to enroll the Elastic Agent into.
+            # Found in Kibana: Management > Fleet > Settings.
+            - name: FLEET_URL
+              value: "<replace-with-url>"
+            # Enrollment token used to enroll the Elastic Agent in Fleet.
+            - name: FLEET_ENROLLMENT_TOKEN
+              value: "<replace-with-token>"
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          volumeMounts:
+            # Persist Elastic Agent state across pod restarts within the pod's lifetime.
+            - name: elastic-agent-state
+              mountPath: /usr/share/elastic-agent/state
+      volumes:
+        - name: elastic-agent-state
+          persistentVolumeClaim:
+            claimName: agent-state
+

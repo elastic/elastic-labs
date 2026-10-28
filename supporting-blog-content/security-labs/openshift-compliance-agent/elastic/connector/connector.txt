@@ -1,0 +1,27 @@
+POST kbn:/api/actions/connector/<connector-id>
+{ 
+  "name": "<cluster-name>",
+  "connector_type_id": ".kubernetes",
+  "config": {
+    "apiUrl": "https://<ocp-api-endpoint>:6443",
+    "authType": "bearer_with_tls"
+  },
+  "secrets": {
+    "verificationMode": "certificate",
+    "authType": "bearer_with_tls",
+    "token":"<replace-with-sa-token>",
+    "caCert":
+  }
+}
+
+###
+POST kbn:/api/actions/connector/<connector-id>/_execute
+{
+  "params": {
+    "subAction": "request",
+    "subActionParams": {
+      "method": "GET",
+      "path": "/version"
+    }
+  }
+}

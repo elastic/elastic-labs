@@ -1,0 +1,303 @@
+POST kbn:/api/workflows/workflow
+    {
+      "id": "ospm-custom-rule-annotation-ocp-na-prod",
+      "name": "Annotate custom compliance Rule resources for ocp-na-prod",
+      "description": "",
+      "enabled": true,
+      "tags": ["openshift-compliance"],
+      "yaml": """name: Annotate custom compliance Rule resources
+
+triggers:
+  - type: scheduled
+    with:
+      every: 5m
+
+consts:
+  es_index: "ospm-compliance_check_results-latest"
+  k8s_connector: "ocp-na-prod"
+
+steps:
+  - name: query_custom_compliance_results
+    type: elasticsearch.esql.query
+    with:
+      format: "json"
+      query: FROM ospm-compliance_check_results-latest | WHERE orchestrator.resource.name LIKE "custom-*" | KEEP rule.name, `openshift_security_posture_management.compliance_check_results.annotations.compliance_openshift_io_last-scanned-timestamp`, openshift_security_posture_management.compliance_check_results.status | LIMIT 500
+
+  - name: shape_compliance_rows
+    type: data.map
+    with:
+      fields:
+        rule_name: ${{ item[0] }}
+        last_scan_timestamp: ${{ item[1] }}
+        status: ${{ item[2] }}
+    items: ${{ steps.query_custom_compliance_results.output.values }}
+
+  - name: patch_rule_resources
+    type: foreach
+    foreach: "{{ steps.shape_compliance_rows.output | json }}"
+    steps:
+      - name: patch_rule_resource
+        type: kubernetes.patchResource
+        connector-id: "ocp-na-prod"
+        with:
+          apiVersion: "compliance.openshift.io/v1alpha1"
+          resource: "rules"
+          namespace: "openshift-compliance"
+          name: "ocp4-{{ foreach.item.rule_name }}"
+          patchType: "merge"
+          patch:
+            metadata:
+              annotations:
+                elastic.co/last-scan-timestamp: "{{ foreach.item.last_scan_timestamp }}"
+                elastic.co/manual-scan-status: "{{ foreach.item.status }}"
+""",
+        "triggers": [
+          {
+            "type": "scheduled",
+            "with": {
+              "every": "5m"
+            }
+          }
+        ]
+      }
+
+###
+
+POST kbn:/api/workflows/workflow
+{
+  "id": "openshift-compliance-read-live-state",
+  "yaml": """
+name: openshift-compliance-read-live-state
+description: Fetch one ComplianceScan, ComplianceCheckResult, or ComplianceRemediation from a live OpenShift cluster.
+enabled: true
+tags: ["openshift-compliance"]
+
+consts:
+  namespace: "openshift-compliance"
+  api_version: "compliance.openshift.io/v1alpha1"
+
+triggers:
+  - type: manual
+    inputs:
+      - name: cluster
+        type: string
+        required: true
+        description: "Cluster name as stored in Elasticsearch, matching the Kubernetes connector name."
+      - name: resource_kind
+        type: choice
+        options: [ComplianceScan, ComplianceCheckResult, ComplianceRemediation]
+        required: true
+        description: "Kind of compliance object to read."
+      - name: resource_name
+        type: string
+        required: true
+        description: "Exact object name in the openshift-compliance namespace."
+
+outputs:
+  - name: cluster
+    type: string
+  - name: resource_kind
+    type: string
+  - name: object
+    type: string
+
+steps:
+  - name: read_resource
+    type: kubernetes.getResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "{{ inputs.resource_kind | downcase | append: 's' }}"
+      name: "{{ inputs.resource_name }}"
+      namespace: "{{ consts.namespace }}"
+  - name: return_output
+    type: workflow.output
+    with:
+      cluster: "{{ inputs.cluster }}"
+      resource_kind: "{{ inputs.resource_kind }}"
+      object: "{{ steps.read_resource.output | json }}"
+"""
+}
+
+###
+
+POST kbn:/api/workflows/workflow
+{
+  "id": "openshift-compliance-trigger-scan",
+  "yaml": """
+name: openshift-compliance-trigger-scan
+description: Trigger a re-run of one ComplianceScan on a live OpenShift cluster by setting the rescan annotation.
+enabled: true
+tags: ["openshift-compliance"]
+
+consts:
+  namespace: "openshift-compliance"
+  api_version: "compliance.openshift.io/v1alpha1"
+
+triggers:
+  - type: manual
+    inputs:
+      - name: cluster
+        type: string
+        required: true
+        description: "Cluster name as stored in Elasticsearch, matching the Kubernetes connector name."
+      - name: scan_name
+        type: string
+        required: true
+        description: "Exact ComplianceScan name, for example ocp4-high."
+
+outputs:
+  - name: cluster
+    type: string
+  - name: scan_name
+    type: string
+  - name: previous_phase
+    type: string
+  - name: previous_result
+    type: string
+  - name: rescan_requested
+    type: boolean
+
+settings:
+  timeout: "2m"
+
+steps:
+  - name: get_scan
+    type: kubernetes.getResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "compliancescans"
+      name: "{{ inputs.scan_name }}"
+      namespace: "{{ consts.namespace }}"
+  - name: guard_phase
+    type: if
+    condition: "not steps.get_scan.output.status.phase : DONE"
+    steps:
+      - name: scan_not_done
+        type: workflow.fail
+        with:
+          message: "Scan '{{ inputs.scan_name }}' on cluster '{{ inputs.cluster }}' is not in the DONE phase. Not re-running it."
+          reason: "scan_not_done"
+  - name: annotate_rescan
+    type: kubernetes.patchResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "compliancescans"
+      name: "{{ inputs.scan_name }}"
+      namespace: "{{ consts.namespace }}"
+      patchType: "merge"
+      patch:
+        metadata:
+          annotations:
+            compliance.openshift.io/rescan: ""
+  - name: return_output
+    type: workflow.output
+    with:
+      cluster: "{{ inputs.cluster }}"
+      scan_name: "{{ inputs.scan_name }}"
+      previous_phase: "{{ steps.get_scan.output.status.phase }}"
+      previous_result: "{{ steps.get_scan.output.status.result }}"
+      rescan_requested: true
+"""
+}
+
+###
+
+POST kbn:/api/workflows/workflow
+{
+  "id": "openshift-compliance-set-remediation-state",
+  "yaml": """
+name: openshift-compliance-set-remediation-state
+description: Apply or revert one ComplianceRemediation on a live OpenShift cluster. Dry run first.
+enabled: true
+tags: ["openshift-compliance"]
+
+consts:
+  namespace: "openshift-compliance"
+  api_version: "compliance.openshift.io/v1alpha1"
+
+triggers:
+  - type: manual
+    inputs:
+      - name: cluster
+        type: string
+        required: true
+        description: "Cluster name as stored in Elasticsearch, matching the Kubernetes connector name."
+      - name: remediation_name
+        type: string
+        required: true
+        description: "Exact ComplianceRemediation name, for example ocp4-cis-audit-profile-set."
+      - name: apply
+        type: boolean
+        required: true
+        description: "true to apply the remediation, false to revert it."
+
+outputs:
+  - name: cluster
+    type: string
+  - name: remediation_name
+    type: string
+  - name: apply_requested
+    type: string
+  - name: before
+    type: string
+  - name: after
+    type: string
+
+settings:
+  timeout: "2m"
+
+steps:
+  - name: get_before
+    type: kubernetes.getResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "complianceremediations"
+      name: "{{ inputs.remediation_name }}"
+      namespace: "{{ consts.namespace }}"
+  - name: dry_run_patch
+    type: kubernetes.patchResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "complianceremediations"
+      name: "{{ inputs.remediation_name }}"
+      namespace: "{{ consts.namespace }}"
+      patchType: "merge"
+      dryRun: true
+      patch:
+        spec:
+          apply: "${{ inputs.apply }}"
+  - name: patch_resource
+    type: kubernetes.patchResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "complianceremediations"
+      name: "{{ inputs.remediation_name }}"
+      namespace: "{{ consts.namespace }}"
+      patchType: "merge"
+      patch:
+        spec:
+          apply: "${{ inputs.apply }}"
+  - name: get_after
+    type: kubernetes.getResource
+    connector-id: "{{ inputs.cluster }}"
+    with:
+      apiVersion: "{{ consts.api_version }}"
+      resource: "complianceremediations"
+      name: "{{ inputs.remediation_name }}"
+      namespace: "{{ consts.namespace }}"
+  - name: return_output
+    type: workflow.output
+    with:
+      cluster: "{{ inputs.cluster }}"
+      remediation_name: "{{ inputs.remediation_name }}"
+      apply_requested: "{{ inputs.apply }}"
+      before: "{{ steps.get_before.output | json }}"
+      after: "{{ steps.get_after.output | json }}"
+"""
+}
