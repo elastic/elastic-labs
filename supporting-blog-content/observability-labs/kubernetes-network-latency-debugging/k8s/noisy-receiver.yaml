@@ -1,0 +1,35 @@
+# Incident 2, part 1: the iperf3 receiver on worker2 (the "other node").
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analytics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperf-receiver
+  namespace: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: iperf-receiver}
+  template:
+    metadata:
+      labels: {app: iperf-receiver}
+    spec:
+      nodeSelector: {kubernetes.io/hostname: net-latency-worker2}
+      containers:
+        - name: iperf3
+          image: lab-tools:lab
+          imagePullPolicy: Never
+          command: ["iperf3", "-s"]
+          ports: [{containerPort: 5201}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iperf-receiver
+  namespace: analytics
+spec:
+  selector: {app: iperf-receiver}
+  ports: [{port: 5201, targetPort: 5201}]

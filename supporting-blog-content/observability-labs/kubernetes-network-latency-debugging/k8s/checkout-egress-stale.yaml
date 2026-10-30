@@ -1,0 +1,27 @@
+# The policy "written when both CoreDNS replicas ran on worker2". lab.sh replaces __COREDNS_CIDR__
+# with worker2's pod CIDR (10.244.3.0/24 in the article; kind assigns CIDRs in join order).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: checkout-egress
+  namespace: shop
+spec:
+  podSelector:
+    matchLabels: {app: checkout}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: {cidr: __COREDNS_CIDR__}   # "where CoreDNS runs"
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - podSelector:
+            matchLabels: {app: inventory}
+      ports:
+        - {protocol: TCP, port: 8080}
+    - to:
+        # kind nodes on the Docker network: the EDOT daemon collector uses the host network.
+        - ipBlock: {cidr: 172.16.0.0/12}
+      ports:
+        - {protocol: TCP, port: 4318}
