@@ -1,0 +1,34 @@
+# The identity the rollback workflow uses: it can read and patch Deployments in shop, and list
+# ReplicaSets, nothing else in the cluster.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployment-rollback
+  namespace: shop
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-rollback
+  namespace: shop
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployment-rollback
+  namespace: shop
+subjects:
+  - kind: ServiceAccount
+    name: deployment-rollback
+    namespace: shop
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: deployment-rollback

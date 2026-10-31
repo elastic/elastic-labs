@@ -1,0 +1,22 @@
+{
+  "id": "rollout_compare_replicasets",
+  "type": "esql",
+  "description": "Compare the ReplicaSets of one Kubernetes Deployment over the last 30 minutes: requests, failed requests, error percentage, p95 latency, pod count and first-seen time per ReplicaSet and service.version, from OpenTelemetry server spans. Use this first when a rollout is suspected: a new ReplicaSet with a higher error rate than the old one points at the release.",
+  "tags": [
+    "kubernetes",
+    "rollout"
+  ],
+  "configuration": {
+    "params": {
+      "namespace": {
+        "type": "string",
+        "description": "Kubernetes namespace, for example shop"
+      },
+      "deployment": {
+        "type": "string",
+        "description": "Deployment name, for example orders"
+      }
+    },
+    "query": "FROM traces-generic.otel-default\n| WHERE @timestamp > NOW() - 30 minutes\n    AND k8s.namespace.name == ?namespace AND k8s.deployment.name == ?deployment\n    AND kind == \"Server\" AND span.name != \"GET /healthz\"\n| STATS requests = COUNT(*),\n        errors = COUNT(*) WHERE event.outcome == \"failure\",\n        p95_ms = PERCENTILE(duration, 95),\n        pods = COUNT_DISTINCT(k8s.pod.name),\n        first_seen = MIN(@timestamp)\n    BY k8s.replicaset.name, service.version\n| EVAL error_pct = ROUND(100.0 * errors / requests, 1), p95_ms = ROUND(p95_ms / 1000000.0, 1)\n| SORT first_seen"
+  }
+}

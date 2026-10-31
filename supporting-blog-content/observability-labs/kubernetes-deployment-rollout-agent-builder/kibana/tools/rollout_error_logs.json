@@ -1,0 +1,22 @@
+{
+  "id": "rollout_error_logs",
+  "type": "esql",
+  "description": "Most frequent ERROR log patterns of one Kubernetes Deployment over the last 30 minutes, per ReplicaSet, from the application logs shipped by OpenTelemetry. Use it to explain why a ReplicaSet fails. CATEGORIZE groups similar messages, so values inside the message (ids, currencies) can be folded into the pattern.",
+  "tags": [
+    "kubernetes",
+    "rollout"
+  ],
+  "configuration": {
+    "params": {
+      "namespace": {
+        "type": "string",
+        "description": "Kubernetes namespace, for example shop"
+      },
+      "deployment": {
+        "type": "string",
+        "description": "Deployment name, for example orders"
+      }
+    },
+    "query": "FROM logs-generic.otel-default\n| WHERE @timestamp > NOW() - 30 minutes\n    AND k8s.namespace.name == ?namespace AND k8s.deployment.name == ?deployment\n    AND severity_text == \"ERROR\"\n| STATS errors = COUNT(*) BY pattern = CATEGORIZE(body.text), k8s.replicaset.name\n| SORT errors DESC\n| LIMIT 10"
+  }
+}

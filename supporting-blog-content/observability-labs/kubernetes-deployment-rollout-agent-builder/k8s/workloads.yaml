@@ -1,0 +1,87 @@
+# shop namespace: loadgen -> orders (4 replicas, staged rollouts) -> pricing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: pricing}
+  template:
+    metadata:
+      labels: {app: pricing}
+      annotations:
+        instrumentation.opentelemetry.io/inject-python: "opentelemetry-operator-system/elastic-instrumentation"
+    spec:
+      containers:
+        - name: pricing
+          image: pricing:lab
+          imagePullPolicy: Never
+          ports: [{containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pricing
+  namespace: shop
+spec:
+  selector: {app: pricing}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  namespace: shop
+  annotations:
+    kubernetes.io/change-cause: "Initial release orders:1.4.0"
+spec:
+  replicas: 4
+  minReadySeconds: 120
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels: {app: orders}
+  template:
+    metadata:
+      labels: {app: orders}
+      annotations:
+        # The Operator injects EDOT Python and sets service.version from the image tag (1.4.0, 1.5.0)
+        # and k8s.replicaset.name from the pod's owner.
+        instrumentation.opentelemetry.io/inject-python: "opentelemetry-operator-system/elastic-instrumentation"
+    spec:
+      # One pod per node within each ReplicaSet, so the two new pods never share a node.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          labelSelector: {matchLabels: {app: orders}}
+          matchLabelKeys: [pod-template-hash]
+      containers:
+        - name: orders
+          image: orders:1.4.0
+          imagePullPolicy: Never
+          ports: [{containerPort: 8080}]
+          env:
+            - {name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED, value: "true"}
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders
+  namespace: shop
+spec:
+  selector: {app: orders}
+  ports: [{port: 8080, targetPort: 8080}]
