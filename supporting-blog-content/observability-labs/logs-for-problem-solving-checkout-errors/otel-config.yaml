@@ -1,0 +1,64 @@
+# EDOT Collector configuration for the checkout-api log file.
+# file_log reads the JSON lines, the operators turn them into OpenTelemetry log records,
+# and the elasticsearch exporter writes OTel-native documents to logs-checkout_api.otel-default.
+receivers:
+  file_log:
+    include: [/data/checkout-api.log]
+    start_at: beginning
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: "2006-01-02T15:04:05.999Z07:00"
+        severity:
+          parse_from: attributes.level
+      - type: move
+        from: attributes.message
+        to: body
+      # Service and Kubernetes keys describe who wrote the line: resource attributes.
+      - type: move
+        from: attributes["service.name"]
+        to: resource["service.name"]
+      - type: move
+        from: attributes["service.version"]
+        to: resource["service.version"]
+      - type: move
+        from: attributes["k8s.namespace.name"]
+        to: resource["k8s.namespace.name"]
+      - type: move
+        from: attributes["k8s.deployment.name"]
+        to: resource["k8s.deployment.name"]
+      - type: move
+        from: attributes["k8s.pod.name"]
+        to: resource["k8s.pod.name"]
+      - type: remove
+        field: attributes.time
+      - type: remove
+        field: attributes.level
+      # Route to logs-checkout_api.otel-default (the exporter appends .otel to the dataset).
+      - type: add
+        field: resource["data_stream.dataset"]
+        value: checkout_api
+
+exporters:
+  elasticsearch/otel:
+    endpoints: ["${env:ELASTICSEARCH_URL}"]
+    api_key: ${env:ELASTICSEARCH_API_KEY}
+    mapping:
+      mode: otel
+    # Larger, parallel bulk requests: the whole file is indexed in a couple of minutes.
+    sending_queue:
+      enabled: true
+      num_consumers: 8
+      batch:
+        flush_timeout: 1s
+        sizer: items
+        min_size: 2000
+        max_size: 5000
+
+service:
+  pipelines:
+    logs:
+      receivers: [file_log]
+      exporters: [elasticsearch/otel]
