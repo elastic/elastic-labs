@@ -1,0 +1,56 @@
+# Layout 1: DaemonSet only.
+# Every node collector exports straight to the Elastic managed OTLP endpoint.
+# The gateway Deployment is removed, so the cluster collector also exports directly.
+collectors:
+  gateway:
+    enabled: false
+  daemon:
+    env:
+      - name: ELASTIC_AGENT_OTEL
+        value: "true"
+      - name: ELASTIC_OTLP_ENDPOINT
+        valueFrom:
+          secretKeyRef: {name: elastic-secret-otel, key: elastic_otlp_endpoint}
+      - name: ELASTIC_API_KEY
+        valueFrom:
+          secretKeyRef: {name: elastic-secret-otel, key: elastic_api_key}
+    config:
+      exporters:
+        otlp_grpc/ingest: &ingest
+          endpoint: ${env:ELASTIC_OTLP_ENDPOINT}
+          headers:
+            Authorization: ApiKey ${env:ELASTIC_API_KEY}
+          sending_queue:
+            enabled: true
+            sizer: bytes
+            queue_size: 50000000
+            block_on_overflow: true
+            batch:
+              flush_timeout: 1s
+              min_size: 1_000_000
+              max_size: 4_000_000
+          timeout: 15s
+      service:
+        pipelines:
+          logs/node: {exporters: [otlp_grpc/ingest]}
+          metrics/node/otel: {exporters: [otlp_grpc/ingest]}
+          metrics/otel-apm: {exporters: [otlp_grpc/ingest]}
+          logs/apm: {exporters: [otlp_grpc/ingest]}
+          traces/apm: {exporters: [otlp_grpc/ingest]}
+  cluster:
+    env:
+      - name: ELASTIC_AGENT_OTEL
+        value: "true"
+      - name: ELASTIC_OTLP_ENDPOINT
+        valueFrom:
+          secretKeyRef: {name: elastic-secret-otel, key: elastic_otlp_endpoint}
+      - name: ELASTIC_API_KEY
+        valueFrom:
+          secretKeyRef: {name: elastic-secret-otel, key: elastic_api_key}
+    config:
+      exporters:
+        otlp_grpc/ingest: *ingest
+      service:
+        pipelines:
+          metrics: {exporters: [debug, otlp_grpc/ingest]}
+          logs: {exporters: [debug, otlp_grpc/ingest]}

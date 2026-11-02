@@ -1,0 +1,39 @@
+# Lab only, not needed on a real cluster.
+# kind: 21 nodes share one Docker VM, so collectors get a 1-core limit, slower liveness
+# probes and a faster rollout, and the logs pipeline skips the cloud resource detectors.
+# Measurement: each collector exposes its own metrics on port 8888 of the pod IP.
+x-telemetry: &telemetry
+  metrics:
+    level: detailed
+    readers:
+      - pull:
+          exporter:
+            prometheus:
+              host: ${env:OTEL_K8S_POD_IP}
+              port: 8888
+collectors:
+  daemon:
+    config:
+      service:
+        telemetry: *telemetry
+        pipelines:
+          logs/node:
+            processors: [batch, k8s_attributes, resourcedetection/env, resourcedetection/system, resource/hostname, resource/cloud]
+    daemonSetUpdateStrategy:
+      type: RollingUpdate
+      rollingUpdate: {maxUnavailable: 3}
+    resources:
+      requests: {cpu: 100m, memory: 250Mi}
+      limits: {cpu: "1", memory: 1Gi}
+    livenessProbe: {initialDelaySeconds: 10, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 6}
+  gateway:
+    config: {service: {telemetry: *telemetry}}
+    livenessProbe: {initialDelaySeconds: 10, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 6}
+    resources:
+      requests: {cpu: 100m, memory: 500Mi}
+      limits: {cpu: "1", memory: 1000Mi}
+  cluster:
+    config: {service: {telemetry: *telemetry}}
+    resources:
+      requests: {cpu: 100m, memory: 250Mi}
+      limits: {cpu: "1", memory: 1Gi}
