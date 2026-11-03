@@ -1,0 +1,482 @@
+# Vector Search with Elasticsearch - Kibana Dev Tools Demo
+#
+# Environment: Elasticsearch Serverless, Vector Database project
+# Scenario:    A catalog of Elastic products and solutions, each with
+#              a short description and its official logo.
+#
+# Run the requests from top to bottom. Every step is safe to re-run.
+# Docs: https://www.elastic.co/docs/solutions/vector-database
+
+
+####  0. Reset  ##############################################
+
+# Start from a clean slate. On a fresh project these return
+# 404 "not found" - that's expected and harmless. force=true
+# drops the tool from any other agent that happens to reference
+# the same tool_id, so this stays idempotent even then.
+DELETE kbn:/api/agent_builder/agents/catalog-finder-agent
+DELETE kbn:/api/agent_builder/tools/catalog-search?force=true
+DELETE kbn:/api/agent_builder/tools/catalog-lookup-by-tag?force=true
+DELETE kbn:/api/agent_builder/tools/catalog-overview?force=true
+DELETE elastic-catalog?ignore_unavailable=true
+DELETE _ingest/pipeline/catalog-embed-description
+DELETE _inference/catalog-text-embeddings
+DELETE _inference/catalog-multimodal-embeddings
+
+
+####  1. Inference API: Models on EIS  #######################
+
+# The Elastic Inference Service (EIS) comes with preconfigured,
+# ready-to-use endpoints. No model deployment, no API keys.
+GET _inference/_all?filter_path=endpoints.inference_id,endpoints.task_type
+
+# Create our own endpoints for two of the Jina models we'll use,
+# so we can give them memorable names.
+
+# Jina Embeddings v5 Text: text in, 1,024-dim vector out
+PUT _inference/text_embedding/catalog-text-embeddings
+{
+  "service": "elastic",
+  "service_settings": { "model_id": "jina-embeddings-v5-text-small" }
+}
+
+# Jina Embeddings v5 Omni: text and images in, mapped into the
+# same vector space. We'll use it on product logos.
+PUT _inference/embedding/catalog-multimodal-embeddings
+{
+  "service": "elastic",
+  "service_settings": { "model_id": "jina-embeddings-v5-omni-small" }
+}
+
+
+####  1. Inference API: Invoking models  #####################
+
+# Text -> embedding (a list of 1,024 numbers)
+POST _inference/text_embedding/catalog-text-embeddings
+{
+  "input": "a tool for building search experiences over your own content"
+}
+
+# Image -> embedding: a product logo
+POST _inference/embedding/catalog-multimodal-embeddings
+{
+  "input": [
+    {
+      "content": [
+        {
+          "type": "image",
+          "format": "base64",
+          "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAACaklEQVR42mP8//8/AxHg767l/3avYKABYHKNYHaLRHAZBhkYddCog0YdNOqggQYsxDpcUYvBMZgEg//9+3dwPQ0dxKiqz6yqT4LBf/+Q56DRNDS0E3X/3Rv9925iVce9/yTPvhP4zdIN9p5XWjwaZaMOGnXQqINGHTRADmJipJELGNk4yHHQPwFeWjlIQo4cB/1UVfzPzkZ95/AJMqrokhVCXBxfbY2p7h5mr3gGFjYyE/VXG5NfKnLUTL+2vkzGjvgSNTszM17vMH2I8P4tK0kd19j4MPsmE8hl0hyc+E35z872Pinoh54aRW5hZWP2S2H2T2VgZCTQQLMUFGFhZPrz/x8+N7GwfAz1/KGpwrdpL9P3nyTnKTVD5oA0RlEpolqMYuwcPuJSG148IZzpdFTfykvx7j7GceEaw3/inCKlyOwRw6hpQlo3KF1BZcvLp3+IGFb7x8v9Mcj1m6UB16Ez7NfuMP7DEa5MTIyqBsy2voxqhljjiICDtHn5C5U1uu9cJzIKfkuKfgz3ZPrwmfv4BVZOTrQgYTJ2ZDKwY+ATJCFOMccY//3/H3f+xKG3r0hNH4VK6oXKGtSvy5gYGWfrm1kLiQ6iypWTmXmegbmdsNggqu05mZkXGFpkKqgyDp7mBwsjY6Wq1mwDcz4W1kHUHnITldhqYW9DryRFVOUqz8m9zNhqup6pMBv7IGrCeotLHbByjpNVZGFkGixtan5W1hYNvcM2zlEyCsyMjIOlkS/NwdWhqb/dwsFVVIJx8PQ6NHj45hqYH7R2SZRTYmeiWiQyEjk9hR+8+Plj3qO7YmwcKfLKFJoFAPn9j+BymM1lAAAAAElFTkSuQmCC"
+        }
+      ]
+    }
+  ]
+}
+
+# What do vectors buy us? Similar meaning = high cosine
+# similarity, even with zero words in common.
+POST _query?format=txt
+{
+  "query": """
+ROW query = "a tool for building search experiences over your own content"
+| EVAL same_meaning = V_COSINE(
+         TEXT_EMBEDDING("a tool for building search experiences over your own content", "catalog-text-embeddings"),
+         TEXT_EMBEDDING("connectors and retrieval for custom search applications", "catalog-text-embeddings")),
+       different_topic = V_COSINE(
+         TEXT_EMBEDDING("a tool for building search experiences over your own content", "catalog-text-embeddings"),
+         TEXT_EMBEDDING("detecting threats and hunting adversaries", "catalog-text-embeddings"))
+| KEEP query, same_meaning, different_topic
+"""
+}
+
+# Same idea across modalities: text vs. a product logo
+# (EMBEDDING is a preview function)
+POST _query?format=txt
+{
+  "query": """
+ROW logo = "Elastic Security logo"
+| EVAL matching_text = V_COSINE(
+         EMBEDDING("a shield representing threat detection and SIEM", "catalog-multimodal-embeddings"),
+         EMBEDDING("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAACaklEQVR42mP8//8/AxHg767l/3avYKABYHKNYHaLRHAZBhkYddCog0YdNOqggQYsxDpcUYvBMZgEg//9+3dwPQ0dxKiqz6yqT4LBf/+Q56DRNDS0E3X/3Rv9925iVce9/yTPvhP4zdIN9p5XWjwaZaMOGnXQqINGHTRADmJipJELGNk4yHHQPwFeWjlIQo4cB/1UVfzPzkZ95/AJMqrokhVCXBxfbY2p7h5mr3gGFjYyE/VXG5NfKnLUTL+2vkzGjvgSNTszM17vMH2I8P4tK0kd19j4MPsmE8hl0hyc+E35z872Pinoh54aRW5hZWP2S2H2T2VgZCTQQLMUFGFhZPrz/x8+N7GwfAz1/KGpwrdpL9P3nyTnKTVD5oA0RlEpolqMYuwcPuJSG148IZzpdFTfykvx7j7GceEaw3/inCKlyOwRw6hpQlo3KF1BZcvLp3+IGFb7x8v9Mcj1m6UB16Ez7NfuMP7DEa5MTIyqBsy2voxqhljjiICDtHn5C5U1uu9cJzIKfkuKfgz3ZPrwmfv4BVZOTrQgYTJ2ZDKwY+ATJCFOMccY//3/H3f+xKG3r0hNH4VK6oXKGtSvy5gYGWfrm1kLiQ6iypWTmXmegbmdsNggqu05mZkXGFpkKqgyDp7mBwsjY6Wq1mwDcz4W1kHUHnITldhqYW9DryRFVOUqz8m9zNhqup6pMBv7IGrCeotLHbByjpNVZGFkGixtan5W1hYNvcM2zlEyCsyMjIOlkS/NwdWhqb/dwsFVVIJx8PQ6NHj45hqYH7R2SZRTYmeiWiQyEjk9hR+8+Plj3qO7YmwcKfLKFJoFAPn9j+BymM1lAAAAAElFTkSuQmCC", "catalog-multimodal-embeddings", {"type": "image"})),
+       unrelated_text = V_COSINE(
+         EMBEDDING("a cloud representing managed hosting", "catalog-multimodal-embeddings"),
+         EMBEDDING("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAACaklEQVR42mP8//8/AxHg767l/3avYKABYHKNYHaLRHAZBhkYddCog0YdNOqggQYsxDpcUYvBMZgEg//9+3dwPQ0dxKiqz6yqT4LBf/+Q56DRNDS0E3X/3Rv9925iVce9/yTPvhP4zdIN9p5XWjwaZaMOGnXQqINGHTRADmJipJELGNk4yHHQPwFeWjlIQo4cB/1UVfzPzkZ95/AJMqrokhVCXBxfbY2p7h5mr3gGFjYyE/VXG5NfKnLUTL+2vkzGjvgSNTszM17vMH2I8P4tK0kd19j4MPsmE8hl0hyc+E35z872Pinoh54aRW5hZWP2S2H2T2VgZCTQQLMUFGFhZPrz/x8+N7GwfAz1/KGpwrdpL9P3nyTnKTVD5oA0RlEpolqMYuwcPuJSG148IZzpdFTfykvx7j7GceEaw3/inCKlyOwRw6hpQlo3KF1BZcvLp3+IGFb7x8v9Mcj1m6UB16Ez7NfuMP7DEa5MTIyqBsy2voxqhljjiICDtHn5C5U1uu9cJzIKfkuKfgz3ZPrwmfv4BVZOTrQgYTJ2ZDKwY+ATJCFOMccY//3/H3f+xKG3r0hNH4VK6oXKGtSvy5gYGWfrm1kLiQ6iypWTmXmegbmdsNggqu05mZkXGFpkKqgyDp7mBwsjY6Wq1mwDcz4W1kHUHnITldhqYW9DryRFVOUqz8m9zNhqup6pMBv7IGrCeotLHbByjpNVZGFkGixtan5W1hYNvcM2zlEyCsyMjIOlkS/NwdWhqb/dwsFVVIJx8PQ6NHj45hqYH7R2SZRTYmeiWiQyEjk9hR+8+Plj3qO7YmwcKfLKFJoFAPn9j+BymM1lAAAAAElFTkSuQmCC", "catalog-multimodal-embeddings", {"type": "image"}))
+| KEEP logo, matching_text, unrelated_text
+"""
+}
+
+
+####  2. Index: Embedding pipeline  ##########################
+
+# "Bring your own vectors": an ingest pipeline that embeds each
+# product's description into a plain dense_vector field.
+PUT _ingest/pipeline/catalog-embed-description
+{
+  "description": "Embed the product description with Jina v5 Text",
+  "processors": [
+    {
+      "inference": {
+        "model_id": "catalog-text-embeddings",
+        "input_output": [
+          { "input_field": "description", "output_field": "description_vector" }
+        ]
+      }
+    }
+  ]
+}
+
+
+####  2. Index: Settings and mappings  #######################
+
+# Three ways to store vectors, side by side:
+#   description_vector  - dense_vector: you manage the embeddings
+#   description_semantic - semantic_text: Elasticsearch chunks
+#                           and embeds text for you
+#   logo                  - semantic: same, but for any modality
+PUT elastic-catalog
+{
+  "settings": {
+    "index": {
+      "mode": "vectordb_document",
+      "default_pipeline": "catalog-embed-description"
+    }
+  },
+  "mappings": {
+    "properties": {
+      "product_id":  { "type": "keyword" },
+      "name":        { "type": "text" },
+      "category":    { "type": "keyword" },
+      "tags":        { "type": "keyword" },
+      "logo_url":    { "type": "keyword", "index": false },
+      "description": {
+        "type": "text",
+        "copy_to": "description_semantic"
+      },
+      "description_vector": {
+        "type": "dense_vector",
+        "dims": 1024,
+        "similarity": "cosine",
+        "index_options": {
+          "type": "bbq_disk",
+          "auto_calibrate": true
+        }
+      },
+      "description_semantic": {
+        "type": "semantic_text",
+        "inference_id": "catalog-text-embeddings",
+        "index_options": {
+          "dense_vector": { "type": "bbq_disk" }
+        }
+      },
+      "logo": {
+        "type": "semantic",
+        "inference_id": "catalog-multimodal-embeddings"
+      }
+    }
+  }
+}
+
+# Vector Database projects use the vectordb_document index
+# mode. It applies vector-tuned defaults, e.g. vectors are kept
+# out of _source to save storage.
+GET elastic-catalog/_settings?include_defaults=true&filter_path=**.mode,**.exclude_source_vectors
+
+# DiskBBQ keeps compressed vectors on disk, not in RAM.
+# auto_calibrate picks the cheapest encoding that reaches ~90%
+# recall for each merged segment of 10,000+ vectors (so it
+# won't kick in on this small demo). Note the bfloat16 default,
+# applied automatically by vectordb_document mode.
+GET elastic-catalog/_mapping?filter_path=**.description_vector
+
+
+####  3. Load data  ##########################################
+
+# Six Elastic products and solutions. Embeddings are generated
+# on the fly for all three vector fields - including each
+# product's logo.
+POST elastic-catalog/_bulk?refresh=wait_for&filter_path=errors,items.*.error
+{"index": {"_id": "elastic-elasticsearch"}}
+{"product_id": "elastic-elasticsearch", "name": "Elasticsearch", "category": "search", "tags": ["vector-search", "es-ql", "full-text"], "description": "A distributed search and analytics engine supporting full-text, vector, and hybrid search, with ES|QL for querying and dense_vector fields for semantic search.", "logo_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABC0lEQVR42u3Yv04CQRDH8Z1ZOGLAAkg8K/8lJNqdpTTnA2ilHT4H0lhZ8SCWdjwA25tQm1xiC8RIAiGKKzsW9DZEbkh+3yf4ZGeKyZKIyOJn8TzwLgvjmQliNhwT7+0W00bpNqGoQOHLzx96y9eRyTt7Gpcfr2zn7Nq7zChI3ufGMivRrPIu4zCe6QGF0ZRz2OK/RMJGWQABBNB/VyjdJKpAJCIYGUBrLTX1e3ghgAACCCCAthmEewigte+hrhvqWmpz/4KRAQQQQLmCLJMejWXio2qkB3RSi7iV1PSAWkmdO5f7FwdlDZrmYaWdxiQinz503fBp8PE2+V5u/GPfMh1Xo7vzejuNd4r8C9RvUSAo0hvEAAAAAElFTkSuQmCC", "logo": ["Elasticsearch", { "type": "image", "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABC0lEQVR42u3Yv04CQRDH8Z1ZOGLAAkg8K/8lJNqdpTTnA2ilHT4H0lhZ8SCWdjwA25tQm1xiC8RIAiGKKzsW9DZEbkh+3yf4ZGeKyZKIyOJn8TzwLgvjmQliNhwT7+0W00bpNqGoQOHLzx96y9eRyTt7Gpcfr2zn7Nq7zChI3ufGMivRrPIu4zCe6QGF0ZRz2OK/RMJGWQABBNB/VyjdJKpAJCIYGUBrLTX1e3ghgAACCCCAthmEewigte+hrhvqWmpz/4KRAQQQQLmCLJMejWXio2qkB3RSi7iV1PSAWkmdO5f7FwdlDZrmYaWdxiQinz503fBp8PE2+V5u/GPfMh1Xo7vzejuNd4r8C9RvUSAo0hvEAAAAAElFTkSuQmCC" }]}
+{"index": {"_id": "elastic-observability"}}
+{"product_id": "elastic-observability", "name": "Elastic Observability", "category": "observability", "tags": ["apm", "logs", "metrics", "uptime"], "description": "Unifies APM traces, infrastructure metrics, logs, and uptime checks in one place so teams can detect and resolve production issues faster.", "logo_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABbklEQVR42u3Xv0sCYRgH8O97d6bdmRZShwiFEAVWNESQa7QEUk6tLtbU2NBcU0tNrW1BS4PQH9CP2cEwMwQbKvB00OjqlLvzbWhKGnJIH+L9ji/PCx+el+eBl3HO8cdhu1kAssR0vxId8cYntNRCaFYf/Lm4Z6COrMeGj5PjkYCn41xCn5IpNGYO764fTSogAK9Nd/WkdFl+owIC8GG3N07LhmlTAQGovTvbmSdCIADn+XresAiBOMfRTZUQCMBFsfG1f6iAqqZzW7EIgQAUa01aoKppA1C6urO4tPybss10aiud6hZUt1xaHWpzTgtEa+wFSIAEqGdRADiFintfoQTKPbfOsuLJBEiABEiABEiA/i+ISRIxUMBHDBRSaYGUWBgSo9Qhv1ee1mlNmXdtjhbIE4/KU2OU9hBj6s4KUwcILUZJH9L2EyzoI7Sp5clR/0FSmY/0+V/2DRgOansJJ/diX5WcB4PXTN5yein6BPMxZ0y8HbS7AAAAAElFTkSuQmCC", "logo": ["Elastic Observability", { "type": "image", "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABbklEQVR42u3Xv0sCYRgH8O97d6bdmRZShwiFEAVWNESQa7QEUk6tLtbU2NBcU0tNrW1BS4PQH9CP2cEwMwQbKvB00OjqlLvzbWhKGnJIH+L9ji/PCx+el+eBl3HO8cdhu1kAssR0vxId8cYntNRCaFYf/Lm4Z6COrMeGj5PjkYCn41xCn5IpNGYO764fTSogAK9Nd/WkdFl+owIC8GG3N07LhmlTAQGovTvbmSdCIADn+XresAiBOMfRTZUQCMBFsfG1f6iAqqZzW7EIgQAUa01aoKppA1C6urO4tPybss10aiud6hZUt1xaHWpzTgtEa+wFSIAEqGdRADiFintfoQTKPbfOsuLJBEiABEiABEiA/i+ISRIxUMBHDBRSaYGUWBgSo9Qhv1ee1mlNmXdtjhbIE4/KU2OU9hBj6s4KUwcILUZJH9L2EyzoI7Sp5clR/0FSmY/0+V/2DRgOansJJ/diX5WcB4PXTN5yein6BPMxZ0y8HbS7AAAAAElFTkSuQmCC" }]}
+{"index": {"_id": "elastic-security"}}
+{"product_id": "elastic-security", "name": "Elastic Security", "category": "security", "tags": ["siem", "endpoint", "threat-hunting"], "description": "A SIEM and endpoint protection platform for detecting threats, hunting adversaries, and automating incident response across your environment.", "logo_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAACaklEQVR42mP8//8/AxHg767l/3avYKABYHKNYHaLRHAZBhkYddCog0YdNOqggQYsxDpcUYvBMZgEg//9+3dwPQ0dxKiqz6yqT4LBf/+Q56DRNDS0E3X/3Rv9925iVce9/yTPvhP4zdIN9p5XWjwaZaMOGnXQqINGHTRADmJipJELGNk4yHHQPwFeWjlIQo4cB/1UVfzPzkZ95/AJMqrokhVCXBxfbY2p7h5mr3gGFjYyE/VXG5NfKnLUTL+2vkzGjvgSNTszM17vMH2I8P4tK0kd19j4MPsmE8hl0hyc+E35z872Pinoh54aRW5hZWP2S2H2T2VgZCTQQLMUFGFhZPrz/x8+N7GwfAz1/KGpwrdpL9P3nyTnKTVD5oA0RlEpolqMYuwcPuJSG148IZzpdFTfykvx7j7GceEaw3/inCKlyOwRw6hpQlo3KF1BZcvLp3+IGFb7x8v9Mcj1m6UB16Ez7NfuMP7DEa5MTIyqBsy2voxqhljjiICDtHn5C5U1uu9cJzIKfkuKfgz3ZPrwmfv4BVZOTrQgYTJ2ZDKwY+ATJCFOMccY//3/H3f+xKG3r0hNH4VK6oXKGtSvy5gYGWfrm1kLiQ6iypWTmXmegbmdsNggqu05mZkXGFpkKqgyDp7mBwsjY6Wq1mwDcz4W1kHUHnITldhqYW9DryRFVOUqz8m9zNhqup6pMBv7IGrCeotLHbByjpNVZGFkGixtan5W1hYNvcM2zlEyCsyMjIOlkS/NwdWhqb/dwsFVVIJx8PQ6NHj45hqYH7R2SZRTYmeiWiQyEjk9hR+8+Plj3qO7YmwcKfLKFJoFAPn9j+BymM1lAAAAAElFTkSuQmCC", "logo": ["Elastic Security", { "type": "image", "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAACaklEQVR42mP8//8/AxHg767l/3avYKABYHKNYHaLRHAZBhkYddCog0YdNOqggQYsxDpcUYvBMZgEg//9+3dwPQ0dxKiqz6yqT4LBf/+Q56DRNDS0E3X/3Rv9925iVce9/yTPvhP4zdIN9p5XWjwaZaMOGnXQqINGHTRADmJipJELGNk4yHHQPwFeWjlIQo4cB/1UVfzPzkZ95/AJMqrokhVCXBxfbY2p7h5mr3gGFjYyE/VXG5NfKnLUTL+2vkzGjvgSNTszM17vMH2I8P4tK0kd19j4MPsmE8hl0hyc+E35z872Pinoh54aRW5hZWP2S2H2T2VgZCTQQLMUFGFhZPrz/x8+N7GwfAz1/KGpwrdpL9P3nyTnKTVD5oA0RlEpolqMYuwcPuJSG148IZzpdFTfykvx7j7GceEaw3/inCKlyOwRw6hpQlo3KF1BZcvLp3+IGFb7x8v9Mcj1m6UB16Ez7NfuMP7DEa5MTIyqBsy2voxqhljjiICDtHn5C5U1uu9cJzIKfkuKfgz3ZPrwmfv4BVZOTrQgYTJ2ZDKwY+ATJCFOMccY//3/H3f+xKG3r0hNH4VK6oXKGtSvy5gYGWfrm1kLiQ6iypWTmXmegbmdsNggqu05mZkXGFpkKqgyDp7mBwsjY6Wq1mwDcz4W1kHUHnITldhqYW9DryRFVOUqz8m9zNhqup6pMBv7IGrCeotLHbByjpNVZGFkGixtan5W1hYNvcM2zlEyCsyMjIOlkS/NwdWhqb/dwsFVVIJx8PQ6NHj45hqYH7R2SZRTYmeiWiQyEjk9hR+8+Plj3qO7YmwcKfLKFJoFAPn9j+BymM1lAAAAAElFTkSuQmCC" }]}
+{"index": {"_id": "elastic-search-apps"}}
+{"product_id": "elastic-search-apps", "name": "Elastic Search Applications", "category": "search-applications", "tags": ["connectors", "rag", "search-ui"], "description": "Tools for building search experiences and retrieval-augmented generation applications on top of your own content, with connectors to common data sources.", "logo_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAADyElEQVR42u2YbWgbdRzHv///3eWhydJkbaNNm6bpbFrb6FocG51PU8S9cGzDF7PuRTe6imAHsin4AA47YfpCNtlA2AaCKIi+kQ1RQUS22T0xS1ntqnuqWWuSpjVpsjw0yd39fae0e7i79u6Y4Pfl3XH3ud/v+3u4I4wxLEKlKDJnWeYcciMoT6M8A3kOnBN8Jaz1sIeIox2VT8AW1Hpjog1ITGPmazb9JW5eUHW9rQnVG8l9PbD69QYqJ9jkAUx9BrmoOZyEg2c9aXgLFa16AElZNvkRYkch57EUEQ7erSSwB7x7CUA3z7MrOzE3Dr0keEnzIbif1g7EyuyPAcSOAjJ0FiXBvah9WQuQlGW/92L2Jxgn3yuk8V2ALDjM366kp9jYi8iNwFBFP2bUShreVoqQlGUjzyF/CaaIhA6j+vl56ZzvG5Fd7jONBvZmuJ9a6K95PJG9SP1oEo2zg4SPgffcGSh3EbEjJtF4t5LwcQg1t575x9Qyu/4GmGQsB7Wg8klStxOutUp9SEwjfcJI9woQquEIg9p1Ha7Gi+Ie0z0HxAOIRmNG5I3juOVVHosgaDNbPD61YVO3Qa9rEYSurtUv9fW0hJrVpuziyKhx8S+VyydODm7v7T92/Fu1QJHIhNG2EEVx3wf7z55TtfXSZGrWBKvKsvzh/kOyrGxVWigUzCmfSGRi9NKYMlA+XzCtpK9dU16FqamdmqjwkN1uM42nKdioDGSzmQRUX+cLt7cpAy33uM3IFSG7d/VTqpwzPhDwG01DKd29q//xx7pUzbJAoME4FEHg16xe1bejp72tVW0sRVGMxxNG0CxyuP6/oP0XFzQAs2L5h9SMcY+xEOK1WFc6XBUcp8pDDHh0aPBMJmXo21spfcZT/bp/xTp3lbKph7OZVb+ckkzxeG+t/+ADYcftovWvhzqcrtf8TeYY5ZPYxLrh0/FSUaHsJcY2/3rhm7+mzMFqrXD+3Lm2SrDcsco4Qr5o6+xwuswB+i2fvbWSFpa9k+O/f3jNI8sqTQB6L9jS7fWp6tRZSdwyOvRdMgHDFrWBYMs7gWYNo0Nk7M3rYwcmxmXoXHcWSg+HHtp+v38xs+xMJrVtbPhKIaejkT9/sPMullAerllJ3Be5evDP8Zy0pL9HNkpfrQ/uCYTu3qzVTvtEqfj+jatHYjfy2rGslHZ7fQONLQGbXef1Iy2KX01HP41PDqaTaq7vcLpe8Pp21DbUzG82+u9D0eLcqXRyMJ0cymYSpWK8VJyTJRcvuHm+0VYRdixb6XQ966mps2r+gvgbX8B5CXkwtisAAAAASUVORK5CYII=", "logo": ["Elastic Search Applications", { "type": "image", "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAADyElEQVR42u2YbWgbdRzHv///3eWhydJkbaNNm6bpbFrb6FocG51PU8S9cGzDF7PuRTe6imAHsin4AA47YfpCNtlA2AaCKIi+kQ1RQUS22T0xS1ntqnuqWWuSpjVpsjw0yd39fae0e7i79u6Y4Pfl3XH3ud/v+3u4I4wxLEKlKDJnWeYcciMoT6M8A3kOnBN8Jaz1sIeIox2VT8AW1Hpjog1ITGPmazb9JW5eUHW9rQnVG8l9PbD69QYqJ9jkAUx9BrmoOZyEg2c9aXgLFa16AElZNvkRYkch57EUEQ7erSSwB7x7CUA3z7MrOzE3Dr0keEnzIbif1g7EyuyPAcSOAjJ0FiXBvah9WQuQlGW/92L2Jxgn3yuk8V2ALDjM366kp9jYi8iNwFBFP2bUShreVoqQlGUjzyF/CaaIhA6j+vl56ZzvG5Fd7jONBvZmuJ9a6K95PJG9SP1oEo2zg4SPgffcGSh3EbEjJtF4t5LwcQg1t575x9Qyu/4GmGQsB7Wg8klStxOutUp9SEwjfcJI9woQquEIg9p1Ha7Gi+Ie0z0HxAOIRmNG5I3juOVVHosgaDNbPD61YVO3Qa9rEYSurtUv9fW0hJrVpuziyKhx8S+VyydODm7v7T92/Fu1QJHIhNG2EEVx3wf7z55TtfXSZGrWBKvKsvzh/kOyrGxVWigUzCmfSGRi9NKYMlA+XzCtpK9dU16FqamdmqjwkN1uM42nKdioDGSzmQRUX+cLt7cpAy33uM3IFSG7d/VTqpwzPhDwG01DKd29q//xx7pUzbJAoME4FEHg16xe1bejp72tVW0sRVGMxxNG0CxyuP6/oP0XFzQAs2L5h9SMcY+xEOK1WFc6XBUcp8pDDHh0aPBMJmXo21spfcZT/bp/xTp3lbKph7OZVb+ckkzxeG+t/+ADYcftovWvhzqcrtf8TeYY5ZPYxLrh0/FSUaHsJcY2/3rhm7+mzMFqrXD+3Lm2SrDcsco4Qr5o6+xwuswB+i2fvbWSFpa9k+O/f3jNI8sqTQB6L9jS7fWp6tRZSdwyOvRdMgHDFrWBYMs7gWYNo0Nk7M3rYwcmxmXoXHcWSg+HHtp+v38xs+xMJrVtbPhKIaejkT9/sPMullAerllJ3Be5evDP8Zy0pL9HNkpfrQ/uCYTu3qzVTvtEqfj+jatHYjfy2rGslHZ7fQONLQGbXef1Iy2KX01HP41PDqaTaq7vcLpe8Pp21DbUzG82+u9D0eLcqXRyMJ0cymYSpWK8VJyTJRcvuHm+0VYRdixb6XQ966mps2r+gvgbX8B5CXkwtisAAAAASUVORK5CYII=" }]}
+{"index": {"_id": "elastic-cloud"}}
+{"product_id": "elastic-cloud", "name": "Elastic Cloud", "category": "deployment", "tags": ["serverless", "managed", "hosting"], "description": "Fully managed Elastic deployments, including serverless projects, so teams can run search, observability, and security workloads without operating infrastructure.", "logo_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAFgElEQVR42r2Ze0xTdxTHz32UR28fFFrbUq6tPGzBCkUUx7Zg9tCRUV1Eo1PGorBlbnMxW8wMGSSbiyZbcGGJZNkSw+Yw0+w/x4xzbokZui2pKFhwFh8tHZRXW65taWlve/eHnSIUuK29nD/7O+d3Pz3n9/vec38/hGEYSMjGvPSvA/evDU/dGPHfc0+7/WHPdBgAhKmYJB3LzUxdrUgvzeZvLBDJCJz9tEi8QFQg/N1VZ8c119UhX4RFKIrA2hyirjSzbk2WOA1LJtCYl/70d0e7acIXjCSQUUEKWr9O2vS8cuGEsQIKhZnPL418dmn0QVGexESpWONzioOVchxFEgS665quO2O9YvNC8mxdDvH9To1WlhY30E83qV0/3E2sRotW8PTu3GqdOA6gr/4af++sPRxhgBvDUKTtFfKt9TJWQCe7nXt+tDJcwfz/eAS+qVG/sU66CNBvPfdeOuPmLjez8mTarzNk86MyMdfDbrcfeb+hBjfBktjbT8lKlPxHujVrmKbpxsZGr9dr++XEtrRermn2lGV9uZlEZijAbKCOjg6LxQIADMP8e/7r3dhlBGE4Wj3NLyhPbNfM0qPH1pDT6aypqfH7/TM9CkrWX5DvmqBTk0gjSsW+3aHZuipj7tBjKt7e3j6LBgAGev4ul9siZa+eD2iTQrNNLzlWnaOWpCyi1B6Pp7q6OhAIzDdRblGJRVNzLbAsYZQyFf8LI1m5QrCAz6MMdXZ2LkADAHf7e/D+np261YEVlRdDOl8EBwAchWfURG2p9Gk1QWakAIB9MnjF5jt13dVl9T4QDj4P3b5a8ma59FmNII63fX19vdlsZvlfCUKQnV+UqcjZs3NrmT52KV1T9GWbD0ehYrkgIx1jOXM0Q+Pj4319feyT7/N5+TB99MN3hULhfD6ZfHxzoTjeskaBuru74+rUSJJsbW0lCCLpchDVIfbFAgAEQZqbm7mgeQRktVrZx5SXlxsMBo60Owo0NDTEPqaqqoq7l0kUiKIo9jHFxcWcA80V6AVMLpdzDoSiKPuYYDDIOVBcW8bhcHAHFNUhkUjkdrsXae0wrKKiwmg0ajQazoFIkrTZbPM5CYXC2traLVu2SKVSrlu2KFBeXl5XV9fcYR6PZzQa9+3bJ5FIlqajjQIVFRXFFMCmpiaFQgFLaPjDZ+M4TtN09Fcc37t3b0NDQ1y7L5lABEEYDAaTyfRAZlpaWrTahfpDHx0yU64ww+jFmSJe7N5vNDBl8VApKKoXZxI4Lz4gADAajSaTSaVSHT9+XKVSxfRmAHonnT87bJfGhwPhMACgCFIsznpRrtKLs5alpgPA2LTfTDkvjg71Us4IwwBAGoZtkGUblerijKw4GrRgMHjgwIHDhw/LZLKYrt3uibbb5tteKuFyFAjE+wv0hgwp2+MYhmEQJMYpiSMw1TZg/mMiOXpYKVO+k69XpvETPI654hw52t/toUNJXLkEjh/SlW6QZccHFGGYE/dunrINcPGliAC8pl5Zv0KHPl6TeYEYgJZb1zuHbZxu8ioFeUhXOpMJnY+m1dLLNQ0AnB+xH7vVwwAsAnTHS50dti6NEp4bGbwzY+fGBsoXiBt1pQj3NAjAQW1JvkC8CBAAbFKQH2hLUIRDKgxBDuoM1Up1HNv+T+foJ30mf5hOOg0fwz9etXZ9ljxuHXIEpo70X71BuZJIUyiSfFS4huQLEjw4DzPM6cHbpwYtPpp+Yknk1alX7iDzMAR50quFydD0SavlnGMwsQryMfxl5fLXNVrxPN1BgpcvPpq+MGq/MGL/xzMZYRGLIkihSLJJnrNRThI4nvzboIdGhYIm19iAl7rjvT/s93lp2hcOAQCB8QQ4ruILcglhgTBjrUS2cEpm2X8O3TRApp9eSwAAAABJRU5ErkJggg==", "logo": ["Elastic Cloud", { "type": "image", "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAFgElEQVR42r2Ze0xTdxTHz32UR28fFFrbUq6tPGzBCkUUx7Zg9tCRUV1Eo1PGorBlbnMxW8wMGSSbiyZbcGGJZNkSw+Yw0+w/x4xzbokZui2pKFhwFh8tHZRXW65taWlve/eHnSIUuK29nD/7O+d3Pz3n9/vec38/hGEYSMjGvPSvA/evDU/dGPHfc0+7/WHPdBgAhKmYJB3LzUxdrUgvzeZvLBDJCJz9tEi8QFQg/N1VZ8c119UhX4RFKIrA2hyirjSzbk2WOA1LJtCYl/70d0e7acIXjCSQUUEKWr9O2vS8cuGEsQIKhZnPL418dmn0QVGexESpWONzioOVchxFEgS665quO2O9YvNC8mxdDvH9To1WlhY30E83qV0/3E2sRotW8PTu3GqdOA6gr/4af++sPRxhgBvDUKTtFfKt9TJWQCe7nXt+tDJcwfz/eAS+qVG/sU66CNBvPfdeOuPmLjez8mTarzNk86MyMdfDbrcfeb+hBjfBktjbT8lKlPxHujVrmKbpxsZGr9dr++XEtrRermn2lGV9uZlEZijAbKCOjg6LxQIADMP8e/7r3dhlBGE4Wj3NLyhPbNfM0qPH1pDT6aypqfH7/TM9CkrWX5DvmqBTk0gjSsW+3aHZuipj7tBjKt7e3j6LBgAGev4ul9siZa+eD2iTQrNNLzlWnaOWpCyi1B6Pp7q6OhAIzDdRblGJRVNzLbAsYZQyFf8LI1m5QrCAz6MMdXZ2LkADAHf7e/D+np261YEVlRdDOl8EBwAchWfURG2p9Gk1QWakAIB9MnjF5jt13dVl9T4QDj4P3b5a8ma59FmNII63fX19vdlsZvlfCUKQnV+UqcjZs3NrmT52KV1T9GWbD0ehYrkgIx1jOXM0Q+Pj4319feyT7/N5+TB99MN3hULhfD6ZfHxzoTjeskaBuru74+rUSJJsbW0lCCLpchDVIfbFAgAEQZqbm7mgeQRktVrZx5SXlxsMBo60Owo0NDTEPqaqqoq7l0kUiKIo9jHFxcWcA80V6AVMLpdzDoSiKPuYYDDIOVBcW8bhcHAHFNUhkUjkdrsXae0wrKKiwmg0ajQazoFIkrTZbPM5CYXC2traLVu2SKVSrlu2KFBeXl5XV9fcYR6PZzQa9+3bJ5FIlqajjQIVFRXFFMCmpiaFQgFLaPjDZ+M4TtN09Fcc37t3b0NDQ1y7L5lABEEYDAaTyfRAZlpaWrTahfpDHx0yU64ww+jFmSJe7N5vNDBl8VApKKoXZxI4Lz4gADAajSaTSaVSHT9+XKVSxfRmAHonnT87bJfGhwPhMACgCFIsznpRrtKLs5alpgPA2LTfTDkvjg71Us4IwwBAGoZtkGUblerijKw4GrRgMHjgwIHDhw/LZLKYrt3uibbb5tteKuFyFAjE+wv0hgwp2+MYhmEQJMYpiSMw1TZg/mMiOXpYKVO+k69XpvETPI654hw52t/toUNJXLkEjh/SlW6QZccHFGGYE/dunrINcPGliAC8pl5Zv0KHPl6TeYEYgJZb1zuHbZxu8ioFeUhXOpMJnY+m1dLLNQ0AnB+xH7vVwwAsAnTHS50dti6NEp4bGbwzY+fGBsoXiBt1pQj3NAjAQW1JvkC8CBAAbFKQH2hLUIRDKgxBDuoM1Up1HNv+T+foJ30mf5hOOg0fwz9etXZ9ljxuHXIEpo70X71BuZJIUyiSfFS4huQLEjw4DzPM6cHbpwYtPpp+Yknk1alX7iDzMAR50quFydD0SavlnGMwsQryMfxl5fLXNVrxPN1BgpcvPpq+MGq/MGL/xzMZYRGLIkihSLJJnrNRThI4nvzboIdGhYIm19iAl7rjvT/s93lp2hcOAQCB8QQ4ruILcglhgTBjrUS2cEpm2X8O3TRApp9eSwAAAABJRU5ErkJggg==" }]}
+{"index": {"_id": "elastic-agent-builder"}}
+{"product_id": "elastic-agent-builder", "name": "Agent Builder", "category": "ai", "tags": ["agents", "es-ql-tools", "conversational"], "description": "Build conversational AI agents that answer questions over your own data by calling ES|QL tools, grounding every answer in real search results.", "logo_url": "data:image/png;base64,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", "logo": ["Agent Builder", { "type": "image", "value": "data:image/png;base64,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" }]}
+
+GET elastic-catalog/_count
+
+# Vectors are generated but not stored in _source
+GET elastic-catalog/_doc/elastic-security
+
+
+####  4. Vector search with ES|QL  ###########################
+
+# Baseline: keyword search. Incidental word overlap promotes
+# the wrong products over the one the user actually needs
+# (observability, for diagnosing a production incident).
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _score
+| WHERE MATCH(description, "our production service is having problems and I need to find the cause")
+| SORT _score DESC
+| KEEP _score, product_id, name
+| LIMIT 5
+"""
+}
+
+# kNN on dense_vector: embed the question, find the nearest
+# product vectors. observability jumps to the top.
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _score
+| WHERE KNN(description_vector, TEXT_EMBEDDING("our production service is having problems and I need to find the cause", "catalog-text-embeddings"))
+| SORT _score DESC
+| KEEP _score, product_id, name
+| LIMIT 5
+"""
+}
+
+# Filtered kNN: metadata filters are applied during the vector
+# search. visit_percentage is the DiskBBQ speed/recall knob.
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _score
+| WHERE KNN(description_vector, TEXT_EMBEDDING("answer customer questions automatically using our own knowledge base", "catalog-text-embeddings"), {"visit_percentage": 10})
+    AND category in ("ai", "search-applications")
+| SORT _score DESC
+| KEEP _score, product_id, category, name
+| LIMIT 3
+"""
+}
+
+# semantic_text: same result, much less work. No pipeline and
+# no query embedding - just MATCH the field.
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _score
+| WHERE MATCH(description_semantic, "our production service is having problems and I need to find the cause")
+| SORT _score DESC
+| KEEP _score, product_id, name
+| LIMIT 5
+"""
+}
+
+# The : operator is shorthand for MATCH. Combine with filters.
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _score
+| WHERE description_semantic: "catch an attacker moving through our network" AND category == "security"
+| SORT _score DESC
+| KEEP _score, product_id, category, name
+| LIMIT 3
+"""
+}
+
+
+####  5. Multimodal search with the semantic field  ##########
+
+# The semantic field is queried with Query DSL (ES|QL support
+# isn't available yet - ES|QL's KNN() explicitly rejects
+# "semantic" fields: "Cannot use field [logo] with unsupported
+# type [semantic]"). Because Agent Builder's ES|QL tools can
+# only run ES|QL, the catalog-finder-agent in section 7 cannot
+# answer "which logo looks like X" - that's only possible here,
+# directly against the index.
+
+# Text -> image: describe a shape, find the matching logo.
+POST elastic-catalog/_search
+{
+  "_source": ["product_id", "name"],
+  "size": 3,
+  "query": {
+    "match": { "logo": "a logo shaped like a shield" }
+  }
+}
+
+# Image -> product: "which product has this logo?" - search
+# with a logo image instead of text.
+POST elastic-catalog/_search
+{
+  "_source": ["product_id", "name"],
+  "size": 3,
+  "query": {
+    "knn": {
+      "field": "logo",
+      "k": 3,
+      "num_candidates": 20,
+      "query_vector_builder": {
+        "embedding": {
+          "input": {
+            "type": "image",
+            "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAFgElEQVR42r2Ze0xTdxTHz32UR28fFFrbUq6tPGzBCkUUx7Zg9tCRUV1Eo1PGorBlbnMxW8wMGSSbiyZbcGGJZNkSw+Yw0+w/x4xzbokZui2pKFhwFh8tHZRXW65taWlve/eHnSIUuK29nD/7O+d3Pz3n9/vec38/hGEYSMjGvPSvA/evDU/dGPHfc0+7/WHPdBgAhKmYJB3LzUxdrUgvzeZvLBDJCJz9tEi8QFQg/N1VZ8c119UhX4RFKIrA2hyirjSzbk2WOA1LJtCYl/70d0e7acIXjCSQUUEKWr9O2vS8cuGEsQIKhZnPL418dmn0QVGexESpWONzioOVchxFEgS665quO2O9YvNC8mxdDvH9To1WlhY30E83qV0/3E2sRotW8PTu3GqdOA6gr/4af++sPRxhgBvDUKTtFfKt9TJWQCe7nXt+tDJcwfz/eAS+qVG/sU66CNBvPfdeOuPmLjez8mTarzNk86MyMdfDbrcfeb+hBjfBktjbT8lKlPxHujVrmKbpxsZGr9dr++XEtrRermn2lGV9uZlEZijAbKCOjg6LxQIADMP8e/7r3dhlBGE4Wj3NLyhPbNfM0qPH1pDT6aypqfH7/TM9CkrWX5DvmqBTk0gjSsW+3aHZuipj7tBjKt7e3j6LBgAGev4ul9siZa+eD2iTQrNNLzlWnaOWpCyi1B6Pp7q6OhAIzDdRblGJRVNzLbAsYZQyFf8LI1m5QrCAz6MMdXZ2LkADAHf7e/D+np261YEVlRdDOl8EBwAchWfURG2p9Gk1QWakAIB9MnjF5jt13dVl9T4QDj4P3b5a8ma59FmNII63fX19vdlsZvlfCUKQnV+UqcjZs3NrmT52KV1T9GWbD0ehYrkgIx1jOXM0Q+Pj4319feyT7/N5+TB99MN3hULhfD6ZfHxzoTjeskaBuru74+rUSJJsbW0lCCLpchDVIfbFAgAEQZqbm7mgeQRktVrZx5SXlxsMBo60Owo0NDTEPqaqqoq7l0kUiKIo9jHFxcWcA80V6AVMLpdzDoSiKPuYYDDIOVBcW8bhcHAHFNUhkUjkdrsXae0wrKKiwmg0ajQazoFIkrTZbPM5CYXC2traLVu2SKVSrlu2KFBeXl5XV9fcYR6PZzQa9+3bJ5FIlqajjQIVFRXFFMCmpiaFQgFLaPjDZ+M4TtN09Fcc37t3b0NDQ1y7L5lABEEYDAaTyfRAZlpaWrTahfpDHx0yU64ww+jFmSJe7N5vNDBl8VApKKoXZxI4Lz4gADAajSaTSaVSHT9+XKVSxfRmAHonnT87bJfGhwPhMACgCFIsznpRrtKLs5alpgPA2LTfTDkvjg71Us4IwwBAGoZtkGUblerijKw4GrRgMHjgwIHDhw/LZLKYrt3uibbb5tteKuFyFAjE+wv0hgwp2+MYhmEQJMYpiSMw1TZg/mMiOXpYKVO+k69XpvETPI654hw52t/toUNJXLkEjh/SlW6QZccHFGGYE/dunrINcPGliAC8pl5Zv0KHPl6TeYEYgJZb1zuHbZxu8ioFeUhXOpMJnY+m1dLLNQ0AnB+xH7vVwwAsAnTHS50dti6NEp4bGbwzY+fGBsoXiBt1pQj3NAjAQW1JvkC8CBAAbFKQH2hLUIRDKgxBDuoM1Up1HNv+T+foJ30mf5hOOg0fwz9etXZ9ljxuHXIEpo70X71BuZJIUyiSfFS4huQLEjw4DzPM6cHbpwYtPpp+Yknk1alX7iDzMAR50quFydD0SavlnGMwsQryMfxl5fLXNVrxPN1BgpcvPpq+MGq/MGL/xzMZYRGLIkihSLJJnrNRThI4nvzboIdGhYIm19iAl7rjvT/s93lp2hcOAQCB8QQ4ruILcglhgTBjrUS2cEpm2X8O3TRApp9eSwAAAABJRU5ErkJggg=="
+          }
+        }
+      }
+    }
+  }
+}
+
+
+####  6. Hybrid search with ES|QL  ###########################
+
+# Exact terms like "SIEM" are where keyword search shines.
+# FORK runs keyword and semantic search in parallel; FUSE merges
+# them with Reciprocal Rank Fusion (RRF).
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _id, _index, _score
+| FORK (WHERE MATCH(description, "SIEM threat detection") | SORT _score DESC | LIMIT 10)
+       (WHERE MATCH(description_semantic, "SIEM threat detection") | SORT _score DESC | LIMIT 10)
+| KEEP _id, _index, _score, _fork, product_id, name
+| FUSE
+| SORT _score DESC
+| KEEP _score, product_id, name
+| LIMIT 5
+"""
+}
+
+# Linear combination: normalize both score ranges to 0-1, then
+# weight them (here 30% keyword, 70% semantic).
+POST _query?format=txt
+{
+  "query": """
+FROM elastic-catalog METADATA _id, _index, _score
+| FORK (WHERE MATCH(description, "SIEM threat detection") | SORT _score DESC | LIMIT 10)
+       (WHERE MATCH(description_semantic, "SIEM threat detection") | SORT _score DESC | LIMIT 10)
+| KEEP _id, _index, _score, _fork, product_id, name
+| FUSE LINEAR WITH { "weights": { "fork1": 0.3, "fork2": 0.7 }, "normalizer": "minmax" }
+| SORT _score DESC
+| KEEP _score, product_id, name
+| LIMIT 5
+"""
+}
+
+
+####  7. Agent Builder: ES|QL tools  #########################
+
+# Tool 1: hybrid search over the catalog
+POST kbn:/api/agent_builder/tools
+{
+  "id": "catalog-search",
+  "type": "esql",
+  "description": "Search the Elastic product catalog with hybrid (keyword + semantic) search. Use for any question about what a product does or which product fits a use case.",
+  "tags": ["catalog", "elastic"],
+  "configuration": {
+    "query": """
+FROM elastic-catalog METADATA _id, _index, _score
+| FORK (WHERE MATCH(description, ?query) | SORT _score DESC | LIMIT 20)
+       (WHERE MATCH(description_semantic, ?query) | SORT _score DESC | LIMIT 20)
+| KEEP _id, _index, _score, _fork, product_id, name, category, tags, description, logo_url
+| FUSE
+| SORT _score DESC
+| KEEP product_id, name, category, tags, description, logo_url
+| LIMIT 5
+""",
+    "params": {
+      "query": {
+        "type": "string",
+        "description": "The user's need or question about Elastic products, in natural language"
+      }
+    }
+  }
+}
+
+# Tool 2: exact lookup by tag or category
+POST kbn:/api/agent_builder/tools
+{
+  "id": "catalog-lookup-by-tag",
+  "type": "esql",
+  "description": "Look up Elastic products by an exact tag or category, such as 'siem' or 'observability'.",
+  "tags": ["catalog", "elastic"],
+  "configuration": {
+    "query": """
+FROM elastic-catalog
+| WHERE tags == ?tag OR category == ?tag
+| KEEP product_id, name, category, tags, description, logo_url
+| LIMIT 10
+""",
+    "params": {
+      "tag": {
+        "type": "string",
+        "description": "The exact tag or category to filter on, for example siem or observability"
+      }
+    }
+  }
+}
+
+# Tool 3: what the catalog covers
+POST kbn:/api/agent_builder/tools
+{
+  "id": "catalog-overview",
+  "type": "esql",
+  "description": "List the categories covered by the Elastic product catalog with product counts.",
+  "tags": ["catalog", "elastic"],
+  "configuration": {
+    "query": """
+FROM elastic-catalog
+| STATS products = COUNT(*), names = VALUES(name) BY category
+| SORT products DESC
+""",
+    "params": {}
+  }
+}
+
+# Try a tool directly, exactly as the agent will call it
+POST kbn:/api/agent_builder/tools/_execute
+{
+  "tool_id": "catalog-search",
+  "tool_params": { "query": "I want to let customers ask questions in natural language and get answers grounded in our data" }
+}
+
+
+####  7. Agent Builder: Agent  ###############################
+
+POST kbn:/api/agent_builder/agents
+{
+  "id": "catalog-finder-agent",
+  "name": "Elastic Product Finder",
+  "description": "Recommends Elastic products and solutions from the catalog for a given use case.",
+  "labels": ["catalog", "demo"],
+  "avatar_color": "#BFDBFF",
+  "avatar_symbol": "EF",
+  "configuration": {
+    "instructions": "You help people find the right Elastic product for a job, using only the product catalog. If the user names an exact tag or category, call catalog-lookup-by-tag first, then catalog-search for related options. Give a short recommendation with 1-2 sentences of reasoning and cite the product_id you used. When a product from the catalog is relevant to your answer, show its name and logo together as a Markdown image using its logo_url field, like ![Elastic Security](logo_url). Your tools can only match on product name, description, category and tags - they cannot search by what a logo looks like, so if asked to identify a product from a visual description of its logo, say that logo-shape search isn't something your tools support rather than guessing. If nothing in the catalog fits a request, say so plainly rather than guessing.",
+    "tools": [
+      {
+        "tool_ids": [
+          "catalog-search",
+          "catalog-lookup-by-tag",
+          "catalog-overview"
+        ]
+      }
+    ]
+  }
+}
+
+# Converse with the agent via API. The response shows which
+# tools it called and the ES|QL results it based its answer on.
+POST kbn:/api/agent_builder/converse
+{
+  "agent_id": "catalog-finder-agent",
+  "input": "I want to let customers ask questions in natural language and get answers grounded in our data - what do you recommend?"
+}
+
+# Keep chatting in the UI (replace <kibana-url> with your
+# project's Kibana URL):
+# <kibana-url>/app/agent_builder/agents/catalog-finder-agent/conversations/new
+#
+# Try asking:
+#   - What's a good product for detecting threats in our network?
+#   - I need to run my deployment without managing servers
+#   - What categories of products do you have?
