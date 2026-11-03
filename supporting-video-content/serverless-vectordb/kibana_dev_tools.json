@@ -402,7 +402,7 @@ POST kbn:/api/agent_builder/tools
   "configuration": {
     "query": """
 FROM elastic-catalog
-| WHERE tags == ?tag OR category == ?tag
+| WHERE MATCH(tags, ?tag) OR category == ?tag
 | KEEP product_id, name, category, tags, description, logo_url
 | LIMIT 10
 """,
