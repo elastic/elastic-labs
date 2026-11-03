@@ -1,0 +1,33 @@
+# Layout 3: DaemonSet + gateway that filters and aggregates before export.
+# Same topology as layout 2. The gateway's metrics pipeline gets two processors:
+#   filter/infra     drops metrics and data points the Hosts view does not read
+#   transform/rollup sums per-device series down to the attribute the Hosts view groups by
+collectors:
+  gateway:
+    config:
+      processors:
+        filter/infra:
+          error_mode: ignore
+          metrics:
+            metric:
+              - name == "system.cpu.time"
+              - IsMatch(name, "^system\\.network\\.(packets|errors|dropped|connections)$")
+              - IsMatch(name, "^system\\.disk\\.(merged|operation_time|io_time|weighted_io_time|pending_operations)$")
+              - name == "system.filesystem.inodes.usage"
+              - IsMatch(name, "^system\\.processes\\.")
+            datapoint:
+              # One veth interface per pod on every node, plus loopback
+              - IsMatch(attributes["device"], "^(veth.*|lo)$")
+        transform/rollup:
+          error_mode: ignore
+          metric_statements:
+            - context: metric
+              statements:
+                - aggregate_on_attributes("sum", ["state"]) where name == "system.filesystem.usage"
+                - aggregate_on_attributes("sum", ["direction"]) where name == "system.disk.io" or name == "system.disk.operations"
+      service:
+        pipelines:
+          metrics:
+            receivers: [otlp]
+            processors: [filter/infra, transform/rollup]
+            exporters: [debug, otlp_grpc/ingest_metrics_traces]
