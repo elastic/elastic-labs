@@ -1,0 +1,22 @@
+{
+  "id": "rollout_history",
+  "type": "esql",
+  "description": "Rollout history of one Kubernetes Deployment over the last 30 minutes: the ScalingReplicaSet events (which ReplicaSet scaled up or down, from how many pods to how many, and when). Use it to line up a release or a rollback with the error rate, and to check whether an old ReplicaSet already reached zero pods.",
+  "tags": [
+    "kubernetes",
+    "rollout"
+  ],
+  "configuration": {
+    "params": {
+      "namespace": {
+        "type": "string",
+        "description": "Kubernetes namespace, for example shop"
+      },
+      "deployment": {
+        "type": "string",
+        "description": "Deployment name, for example orders"
+      }
+    },
+    "query": "FROM logs-k8seventsreceiver.otel-default\n| WHERE @timestamp > NOW() - 30 minutes\n    AND attributes.k8s.namespace.name == ?namespace\n    AND k8s.object.kind == \"Deployment\" AND k8s.object.name == ?deployment\n    AND k8s.event.reason == \"ScalingReplicaSet\"\n| KEEP @timestamp, body.text\n| SORT @timestamp"
+  }
+}

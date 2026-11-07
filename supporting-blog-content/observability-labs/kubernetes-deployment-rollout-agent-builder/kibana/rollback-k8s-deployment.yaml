@@ -1,0 +1,126 @@
+# Rollback workflow from the article. The notebook replaces <http-connector-id> with the id of the
+# HTTP connector it creates (API server URL through the tunnel + Bearer token as a secret header).
+name: rollback-k8s-deployment
+description: Roll back a Kubernetes Deployment to a known-good image after a human approves, then verify the error rate per ReplicaSet.
+enabled: true
+tags: ["kubernetes", "rollback", "human-in-the-loop"]
+
+settings:
+  timeout: "30m"
+
+triggers:
+  - type: manual
+    inputs:
+      - name: namespace
+        type: string
+        required: true
+        description: "Namespace of the Deployment, for example shop"
+      - name: deployment
+        type: string
+        required: true
+        description: "Deployment name, for example orders"
+      - name: container
+        type: string
+        required: true
+        description: "Container to roll back, for example orders"
+      - name: good_image
+        type: string
+        required: true
+        description: "Image of the last healthy ReplicaSet, for example orders:1.4.0"
+      - name: reason
+        type: string
+        required: true
+        description: "One-sentence evidence summary from the investigation"
+
+steps:
+  - name: read_deployment
+    type: http
+    connector-id: <http-connector-id>   # HTTP connector: API server URL + Bearer token
+    with:
+      method: GET
+      path: "/apis/apps/v1/namespaces/{{ inputs.namespace }}/deployments/{{ inputs.deployment }}"
+
+  - name: errors_by_replicaset
+    type: elasticsearch.esql.query
+    with:
+      query: >
+        FROM traces-generic.otel-default
+        | WHERE @timestamp > NOW() - 10 minutes
+          AND k8s.namespace.name == "{{ inputs.namespace }}"
+          AND k8s.deployment.name == "{{ inputs.deployment }}"
+          AND kind == "Server" AND span.name != "GET /healthz"
+        | STATS requests = COUNT(*), errors = COUNT(*) WHERE event.outcome == "failure"
+            BY k8s.replicaset.name, service.version
+        | EVAL error_pct = ROUND(100.0 * errors / requests, 1)
+        | SORT k8s.replicaset.name
+
+  - name: approve_rollback
+    type: waitForInput
+    with:
+      message: >-
+        Roll back {{ inputs.namespace }}/{{ inputs.deployment }} from
+        {{ steps.read_deployment.output.data.spec.template.spec.containers[0].image }}
+        to {{ inputs.good_image }}?
+        Rollout paused: {{ steps.read_deployment.output.data.spec.paused }}.
+        Last 10 minutes:
+        {% for row in steps.errors_by_replicaset.output.values %}{{ row[2] }} ({{ row[3] }}) failed {{ row[1] }} of {{ row[0] }} requests ({{ row[4] }}%).
+        {% endfor %}Reason: {{ inputs.reason }}
+      schema:
+        type: object
+        properties:
+          approved:
+            type: boolean
+            title: "Approve the rollback"
+          notes:
+            type: string
+            title: "Reviewer notes"
+        required: ["approved"]
+
+  - name: patch_deployment
+    type: http
+    connector-id: <http-connector-id>   # HTTP connector: API server URL + Bearer token
+    if: "steps.approve_rollback.output.response.approved : true"
+    with:
+      method: PATCH
+      path: "/apis/apps/v1/namespaces/{{ inputs.namespace }}/deployments/{{ inputs.deployment }}"
+      headers:
+        Content-Type: "application/strategic-merge-patch+json"
+      body:
+        metadata:
+          annotations:
+            kubernetes.io/change-cause: "Rollback to {{ inputs.good_image }} by Elastic workflow: {{ inputs.reason }}"
+        spec:
+          paused: false
+          template:
+            spec:
+              containers:
+                - name: "{{ inputs.container }}"
+                  image: "{{ inputs.good_image }}"
+
+  - name: let_pods_settle
+    type: wait
+    if: "steps.approve_rollback.output.response.approved : true"
+    with:
+      duration: "3m"
+
+  - name: verify_errors
+    type: elasticsearch.esql.query
+    if: "steps.approve_rollback.output.response.approved : true"
+    with:
+      query: >
+        FROM traces-generic.otel-default
+        | WHERE @timestamp > NOW() - 2 minutes
+          AND k8s.namespace.name == "{{ inputs.namespace }}"
+          AND k8s.deployment.name == "{{ inputs.deployment }}"
+          AND kind == "Server" AND span.name != "GET /healthz"
+        | STATS requests = COUNT(*), errors = COUNT(*) WHERE event.outcome == "failure"
+            BY k8s.replicaset.name, service.version
+
+  - name: report
+    type: console
+    with:
+      message: |
+        {% if steps.approve_rollback.output.response.approved %}Rolled back {{ inputs.namespace }}/{{ inputs.deployment }} to {{ inputs.good_image }}. Approved by {{ steps.approve_rollback.output.respondedBy }}: {{ steps.approve_rollback.output.response.notes }}
+        Last 2 minutes after the rollback (ReplicaSet, version, requests, errors):
+        {% for row in steps.verify_errors.output.values %}- {{ row[2] }} {{ row[3] }}: {{ row[0] }} requests, {{ row[1] }} errors
+        {% endfor %}{% else %}Rollback declined by {{ steps.approve_rollback.output.respondedBy }}. No change was made.{% endif %}

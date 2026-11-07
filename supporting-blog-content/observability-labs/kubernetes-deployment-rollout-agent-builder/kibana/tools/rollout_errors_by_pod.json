@@ -1,0 +1,22 @@
+{
+  "id": "rollout_errors_by_pod",
+  "type": "esql",
+  "description": "Requests, failed requests and error percentage per ReplicaSet, pod and node of one Kubernetes Deployment over the last 30 minutes, from OpenTelemetry server spans. Use it to tell a bad release from a bad node: if every pod of the new ReplicaSet fails on different nodes while old pods on the same nodes are healthy, the release is the cause.",
+  "tags": [
+    "kubernetes",
+    "rollout"
+  ],
+  "configuration": {
+    "params": {
+      "namespace": {
+        "type": "string",
+        "description": "Kubernetes namespace, for example shop"
+      },
+      "deployment": {
+        "type": "string",
+        "description": "Deployment name, for example orders"
+      }
+    },
+    "query": "FROM traces-generic.otel-default\n| WHERE @timestamp > NOW() - 30 minutes\n    AND k8s.namespace.name == ?namespace AND k8s.deployment.name == ?deployment\n    AND kind == \"Server\" AND span.name != \"GET /healthz\"\n| STATS requests = COUNT(*), errors = COUNT(*) WHERE event.outcome == \"failure\"\n    BY k8s.replicaset.name, k8s.pod.name, k8s.node.name\n| EVAL error_pct = ROUND(100.0 * errors / requests, 1)\n| SORT k8s.replicaset.name, k8s.pod.name"
+  }
+}
