@@ -1,0 +1,10 @@
+# Starting state: both CoreDNS replicas on worker2.
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [net-latency-worker2]}
