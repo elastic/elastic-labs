@@ -7,6 +7,7 @@ from langchain_mistralai import ChatMistralAI
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 LLM_TYPE = os.getenv("LLM_TYPE", "openai")
+FORGE_BASE_URL = "https://api.forge.tensorblock.co/v1"
 
 
 def init_openai_chat(temperature):
@@ -16,6 +17,18 @@ def init_openai_chat(temperature):
         streaming=True,
         temperature=temperature,
         model_kwargs={"stream_options": {"include_usage": True}},
+    )
+
+
+def init_forge_chat(temperature):
+    # Include streaming usage as this allows recording of LLM metrics
+    return ChatOpenAI(
+        model=os.getenv("CHAT_MODEL"),
+        streaming=True,
+        temperature=temperature,
+        model_kwargs={"stream_options": {"include_usage": True}},
+        api_key=os.getenv("FORGE_API_KEY"),
+        base_url=os.getenv("FORGE_API_BASE", FORGE_BASE_URL),
     )
 
 
@@ -66,6 +79,7 @@ MAP_LLM_TYPE_TO_CHAT_MODEL = {
     "azure": init_azure_chat,
     "bedrock": init_bedrock,
     "openai": init_openai_chat,
+    "forge": init_forge_chat,
     "vertex": init_vertex_chat,
     "mistral": init_mistral_chat,
     "cohere": init_cohere_chat,
