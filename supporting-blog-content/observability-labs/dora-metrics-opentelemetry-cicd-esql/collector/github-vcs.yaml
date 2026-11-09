@@ -1,0 +1,31 @@
+extensions:
+  bearertokenauth/github:
+    token: ${env:GITHUB_TOKEN}
+
+receivers:
+  github:
+    initial_delay: 1s
+    collection_interval: 60s
+    scrapers:
+      scraper:
+        github_org: ${env:GITHUB_ORG}
+        search_query: "repo:${env:GITHUB_REPO}"
+        auth:
+          authenticator: bearertokenauth/github
+
+processors:
+  batch: {}
+
+exporters:
+  otlp_grpc/elastic:
+    endpoint: ${env:ELASTIC_OTLP_ENDPOINT}:443
+    headers:
+      Authorization: ApiKey ${env:ELASTIC_API_KEY}
+
+service:
+  extensions: [bearertokenauth/github]
+  pipelines:
+    metrics:
+      receivers: [github]
+      processors: [batch]
+      exporters: [otlp_grpc/elastic]

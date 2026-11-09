@@ -1,0 +1,61 @@
+{
+  "name": "checkout failed transaction rate by release",
+  "rule_type_id": "observability.rules.custom_threshold",
+  "consumer": "observability",
+  "schedule": {
+    "interval": "1m"
+  },
+  "params": {
+    "criteria": [
+      {
+        "comparator": ">",
+        "threshold": [
+          5
+        ],
+        "timeSize": 2,
+        "timeUnit": "m",
+        "metrics": [
+          {
+            "name": "A",
+            "aggType": "count",
+            "filter": "event.outcome: \"failure\""
+          },
+          {
+            "name": "B",
+            "aggType": "count"
+          }
+        ],
+        "equation": "A / B * 100",
+        "label": "Failed transaction rate (%)"
+      }
+    ],
+    "alertOnNoData": false,
+    "alertOnGroupDisappear": false,
+    "searchConfiguration": {
+      "index": "<traces-otel-data-view-id>",
+      "query": {
+        "query": "service.name: \"checkout\" and deployment.environment.name: \"production\" and processor.event: \"transaction\"",
+        "language": "kuery"
+      }
+    },
+    "groupBy": [
+      "service.name",
+      "service.version"
+    ]
+  },
+  "actions": [
+    {
+      "id": "system-connector-.cases",
+      "params": {
+        "subAction": "run",
+        "subActionParams": {
+          "groupingBy": [
+            "service.version"
+          ],
+          "reopenClosedCases": false,
+          "timeWindow": "7d"
+        }
+      }
+    }
+  ]
+}
