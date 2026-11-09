@@ -1,0 +1,55 @@
+name: Deliver checkout
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t checkout:${{ github.sha }} app
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r app/requirements.txt pytest
+      - run: cd app && pytest -q
+
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, test]
+    runs-on: [self-hosted, dora-lab]
+    concurrency: production
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy checkout to production
+        env:
+          OTLP_ENDPOINT: ${{ vars.ELASTIC_OTLP_ENDPOINT }}
+          ELASTIC_API_KEY: ${{ secrets.ELASTIC_API_KEY }}
+        run: |
+          docker build -t "checkout:${GITHUB_SHA}" app
+          docker rm -f checkout 2>/dev/null || true
+          docker run -d --name checkout --network dora-lab --env-file release.env \
+            -e OTEL_SERVICE_NAME=checkout \
+            -e OTEL_RESOURCE_ATTRIBUTES="service.version=${GITHUB_SHA},deployment.environment.name=production" \
+            -e OTEL_EXPORTER_OTLP_ENDPOINT="${OTLP_ENDPOINT}:443" \
+            -e OTEL_EXPORTER_OTLP_HEADERS="Authorization=ApiKey ${ELASTIC_API_KEY}" \
+            "checkout:${GITHUB_SHA}"
+          for i in $(seq 1 30); do
+            docker exec checkout python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" && exit 0
+            sleep 2
+          done
+          exit 1
