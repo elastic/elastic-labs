@@ -1,0 +1,23 @@
+# The five sample programs from the article. Each one logs three events and exits.
+# The notebook exports OTEL_EXPORTER_OTLP_ENDPOINT and OTLP_API_KEY before calling compose.
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+  OTEL_EXPORTER_OTLP_HEADERS: "Authorization=ApiKey ${OTLP_API_KEY}"
+  OTEL_RESOURCE_ATTRIBUTES: "data_stream.dataset=modern_logging,data_stream.namespace=lab"
+
+services:
+  checkout-python:
+    build: apps/python
+    environment: { <<: *otel, OTEL_SERVICE_NAME: checkout-python }
+  checkout-node:
+    build: apps/node
+    environment: { <<: *otel, OTEL_SERVICE_NAME: checkout-node }
+  checkout-java:
+    build: apps/java
+    environment: { <<: *otel, OTEL_SERVICE_NAME: checkout-java }
+  checkout-go:
+    build: apps/go
+    environment: { <<: *otel, OTEL_SERVICE_NAME: checkout-go }
+  checkout-dotnet:
+    build: apps/dotnet
+    environment: { <<: *otel, OTEL_SERVICE_NAME: checkout-dotnet }
