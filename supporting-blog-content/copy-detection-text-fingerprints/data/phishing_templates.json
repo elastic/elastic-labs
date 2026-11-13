@@ -1,0 +1,18 @@
+[
+  {"title": "Template: overdue invoice",
+   "body": "Dear customer, we were unable to process your latest payment and your invoice is now overdue. To avoid suspension of your account you must verify your payment details within twenty four hours by clicking the secure link below and entering your login credentials to confirm your identity. Failure to act will result in additional fees and permanent closure of your account."},
+  {"title": "Template: bank security alert",
+   "body": "We have detected unusual sign-in activity on your online banking profile from an unrecognised device. For your protection, access to your account has been temporarily limited. Please follow the link below and confirm your username, password and the one time code sent to your phone so that we can restore full access to your account without delay."},
+  {"title": "Template: parcel delivery fee",
+   "body": "Your parcel could not be delivered because of an unpaid customs charge. A small redelivery fee is required before the courier can attempt delivery again. Pay the fee using the secure link below within forty eight hours or the package will be returned to the sender and your order will be cancelled without a refund."},
+  {"title": "Template: payroll update",
+   "body": "Human resources has updated the payroll system and all employees must re-enter their direct deposit details before the end of the week. Click the link below, sign in with your company email address and password, and confirm your bank account information. Employees who do not complete this step may experience a delay in receiving their next salary payment."},
+  {"title": "Template: gift card request",
+   "body": "I am in a meeting right now and cannot take calls, but I need a quick favour. Please purchase five gift cards of one hundred dollars each from the nearest store and send me the codes by reply to this message. I will reimburse you later today. This is urgent and confidential so please do not mention it to anyone else in the office."},
+  {"title": "Template: mailbox storage full",
+   "body": "Your mailbox has reached ninety nine percent of its storage limit and you will stop receiving new messages shortly. To keep your mailbox active, click the button below and sign in to validate your account. Accounts that are not validated within the next twenty four hours will be deactivated and all stored messages will be deleted."},
+  {"title": "Template: prize notification",
+   "body": "Congratulations, you have been selected as the winner of our annual customer prize draw. To claim your reward you must complete the short form at the link below and provide your full name, home address and card number so that we can verify your identity and arrange the transfer. This offer expires in three days and cannot be extended."},
+  {"title": "Template: invoice payment change",
+   "body": "Please note that our bank details have changed with immediate effect. All future payments for outstanding invoices must be sent to the new account listed in the attached document. Kindly confirm by return email once the next transfer has been made and do not use the old account details, which are no longer active and will reject payments."}
+]
