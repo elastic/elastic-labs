@@ -1,0 +1,14 @@
+{
+  "name": "bean-box-checkout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Synthetic monitors for the Bean Box checkout flow",
+  "scripts": {
+    "test": "npx @elastic/synthetics journeys",
+    "push": "npx @elastic/synthetics push"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@elastic/synthetics": "1.29.0"
+  }
+}

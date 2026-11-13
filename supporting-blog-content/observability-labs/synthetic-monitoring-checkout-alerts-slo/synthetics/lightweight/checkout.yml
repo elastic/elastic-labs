@@ -1,0 +1,27 @@
+heartbeat.monitors:
+  - type: http
+    id: checkout-health-http
+    name: Checkout health (HTTP)
+    urls: 'https://bean-box-production-0ad8.up.railway.app/health'
+    schedule: '@every 1m'
+    timeout: 10s
+    check.response.status: [200]
+    check.response.json:
+      - description: health endpoint reports ok
+        expression: 'status == "ok"'
+
+  - type: tcp
+    id: payment-gateway-tcp
+    name: Payment gateway (TCP)
+    hosts: ['metro.proxy.rlwy.net:35021']
+    schedule: '@every 1m'
+    timeout: 10s
+    check.send: "PING\n"
+    check.receive: 'PONG'
+
+  - type: icmp
+    id: shop-edge-icmp
+    name: Shop edge (ICMP)
+    hosts: ['bean-box-production-0ad8.up.railway.app']
+    schedule: '@every 3m'
+    timeout: 10s

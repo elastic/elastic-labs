@@ -1,0 +1,13 @@
+{
+  "name": "bean-box",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sample checkout app used as the target of the synthetic monitoring lab",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
