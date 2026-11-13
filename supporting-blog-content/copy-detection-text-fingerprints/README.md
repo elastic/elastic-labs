@@ -31,10 +31,14 @@ indices the tests create:
 ```json
 {
   "fingerprint_demo": {
+    "cluster": ["monitor_inference"],
     "indices": [{"names": ["fingerprint-demo*"], "privileges": ["all"]}]
   }
 }
 ```
+
+`monitor_inference` is only used by the proxy (see "Guard an LLM"), which calls the model through the Elasticsearch
+inference API. Without it the guard still blocks copied prompts, but clean prompts fail with a 502 when they are forwarded.
 
 The demo creates and deletes its index, loads documents, searches, analyzes text, reads term vectors, and updates
 the index's analysis settings when you apply stop words, so it needs full rights on its own index.
@@ -159,7 +163,7 @@ That is why the filter is defined (with `"_none_"`) when the index is created.
 `proxy.py` is a small OpenAI-style endpoint (`POST /v1/chat/completions`) that checks every
 request before it reaches the model (`guard.py`). A prompt that copies protected text gets HTTP 403 with the matched
 documents and the copied passages; anything else goes to the LLM through the Elasticsearch inference API, so the
-guard and the model share one API key. The text of every message is checked, whatever its role, because the client
+guard and the model share one API key (it needs the `monitor_inference` cluster privilege from step 2). The text of every message is checked, whatever its role, because the client
 sends the whole history (system and assistant turns included) with each request. If the check itself fails (cluster
 down, text too long) the request gets HTTP 503; set `GUARD_FAIL_OPEN=true` to forward it when the cluster cannot be
 reached (text that is too long to check is always refused). Bad requests get 400, and model errors 502.
