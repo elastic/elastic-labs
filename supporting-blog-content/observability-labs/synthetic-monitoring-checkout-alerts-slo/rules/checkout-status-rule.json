@@ -1,0 +1,26 @@
+{
+  "name": "Checkout monitors down",
+  "rule_type_id": "xpack.synthetics.alerts.monitorStatus",
+  "consumer": "uptime",
+  "schedule": {
+    "interval": "1m"
+  },
+  "tags": [
+    "checkout"
+  ],
+  "params": {
+    "projects": [
+      "bean-box-checkout"
+    ],
+    "condition": {
+      "window": {
+        "numberOfChecks": 3
+      },
+      "downThreshold": 2,
+      "locationsThreshold": 2,
+      "groupBy": "none",
+      "recoveryStrategy": "firstUp"
+    }
+  },
+  "actions": []
+}
