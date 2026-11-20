@@ -1,0 +1,13 @@
+{
+  "mappings": {
+    "properties": {
+      "stop": { "type": "keyword" },
+      "ta_date": { "type": "keyword" },
+      "who": {
+        "type": "text",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "text": { "type": "text", "analyzer": "standard" }
+    }
+  }
+}
