@@ -1,0 +1,10 @@
+[
+  {"_id": "red_book-1", "stop": "rivendell", "ta_date": "3018-10-24", "who": ["Bilbo Baggins", "Frodo Baggins"],
+   "text": "I asked Frodo to let me see the Ring once more, and I am ashamed of what happened next. The Rings of Power have brought nothing but grief."},
+  {"_id": "red_book-2", "stop": "rivendell", "ta_date": "3018-11-02", "who": ["Bilbo Baggins"],
+   "text": "Translations from the Elvish, volume three: notes on the Rings of Power and the smiths of Eregion."},
+  {"_id": "red_book-3", "stop": "rivendell", "ta_date": "3018-11-10", "who": ["Bilbo Baggins", "Elrond"],
+   "text": "Elrond's house is the best place for writing. Nobody hurries me and the food is excellent."},
+  {"_id": "red_book-4", "stop": "rivendell", "ta_date": "3018-12-01", "who": ["Bilbo Baggins"],
+   "text": "There and Back Again: the chapter about the riddles in the dark still needs work."}
+]

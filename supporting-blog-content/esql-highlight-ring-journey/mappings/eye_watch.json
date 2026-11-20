@@ -1,0 +1,14 @@
+{
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "watcher": { "type": "keyword" },
+      "place": { "type": "keyword" },
+      "ta_date": { "type": "keyword" },
+      "report": { "type": "text", "analyzer": "english" }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "mappings": {
+    "properties": {
+      "entry": { "type": "keyword" }
+    }
+  }
+}

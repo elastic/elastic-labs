@@ -1,0 +1,164 @@
+# ES|QL HIGHLIGHT, the Ring's journey: Kibana Dev Tools setup
+#
+# Paste this whole file into Kibana > Dev Tools > Console, select everything,
+# and run it. It creates the three small indices the post uses:
+#   fellowship_log    the Fellowship's journey log (text: english, text.exact: standard)
+#   red_book          Bilbo's drafts in Rivendell (text: standard)
+#   book_of_mazarbul  the dwarves' log lines in Moria, for DISSECT
+# The Mordor section also uses eye_watch (50,000 generated reports), which
+# you load with: python3 load.py   (see README.md)
+#
+# To start over, run: DELETE fellowship_log,red_book,book_of_mazarbul
+
+PUT fellowship_log
+{
+  "mappings": {
+    "properties": {
+      "stop": {
+        "type": "keyword"
+      },
+      "ta_date": {
+        "type": "keyword"
+      },
+      "who": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "text": {
+        "type": "text",
+        "analyzer": "english",
+        "fields": {
+          "exact": {
+            "type": "text",
+            "analyzer": "standard"
+          }
+        }
+      }
+    }
+  }
+}
+
+POST fellowship_log/_bulk?refresh=true
+{"index": {"_id": "shire-1"}}
+{"stop": "shire", "ta_date": "3018-04-13", "who": ["Gandalf", "Frodo Baggins"], "text": "At Bag End, Gandalf threw Bilbo's old ring into the fire. When Frodo picked it out, fine letters of fire showed on the band, and Gandalf named it the One Ring."}
+{"index": {"_id": "shire-2"}}
+{"stop": "shire", "ta_date": "3001-09-22", "who": ["Bilbo Baggins", "Gandalf"], "text": "After his farewell party, Bilbo vanished from the Shire. He argued with Gandalf before he agreed to leave the ring behind for Frodo."}
+{"index": {"_id": "shire-3"}}
+{"stop": "shire", "ta_date": "3018-09-23", "who": ["Frodo Baggins", "Samwise Gamgee", "Peregrin Took"], "text": "Frodo, Sam and Pippin set out from Bag End on foot, carrying the Ring east toward Buckland."}
+{"index": {"_id": "shire-4"}}
+{"stop": "shire", "ta_date": "3018-09-24", "who": ["Frodo Baggins", "Samwise Gamgee"], "text": "A Black Rider, one of the Nazgûl, stopped on the road and sniffed the air while the hobbits hid among the roots of a tree."}
+{"index": {"_id": "bree-1"}}
+{"stop": "bree", "ta_date": "3018-09-29", "who": ["Frodo Baggins", "Mr. Underhill"], "text": "At the Prancing Pony, Frodo gave his name as Mr. Underhill. During a song on a table, the Ring slipped onto his finger and he vanished in front of the common room."}
+{"index": {"_id": "bree-2"}}
+{"stop": "bree", "ta_date": "3018-09-29", "who": ["Strider", "Aragorn son of Arathorn"], "text": "A Ranger called Strider offered to guide the hobbits to Rivendell. A late letter from Gandalf told them they could trust him."}
+{"index": {"_id": "bree-3"}}
+{"stop": "bree", "ta_date": "3018-09-30", "who": ["Barliman Butterbur"], "text": "Before dawn, the beds in the hobbits' room at the inn were slashed. Their ponies had been driven off in the night."}
+{"index": {"_id": "weathertop-1"}}
+{"stop": "weathertop", "ta_date": "3018-10-06", "who": ["Frodo Baggins", "Strider"], "text": "On Weathertop, five of the Nazgûl came to the camp at night. Frodo put on the Ring and the Witch-king stabbed him with a Morgul-blade."}
+{"index": {"_id": "weathertop-2"}}
+{"stop": "weathertop", "ta_date": "3018-10-05", "who": ["Strider", "Gandalf"], "text": "Strider found a stone on Weathertop marked with the rune G and three strokes, a sign that Gandalf had been there."}
+{"index": {"_id": "rivendell-1"}}
+{"stop": "rivendell", "ta_date": "3018-10-20", "who": ["Frodo Baggins", "Glorfindel"], "text": "At the Ford of Bruinen, the river rose in a flood shaped like white horses and swept the Ringwraiths away."}
+{"index": {"_id": "rivendell-2"}}
+{"stop": "rivendell", "ta_date": "3018-10-25", "who": ["Elrond", "Gandalf", "Boromir"], "text": "At the Council of Elrond, Gandalf told how Sauron forged the One Ring in secret after the Elven-smiths of Eregion had made the other Rings of Power."}
+{"index": {"_id": "rivendell-3"}}
+{"stop": "rivendell", "ta_date": "3018-10-25", "who": ["Frodo Baggins", "Elrond"], "text": "The Council agreed that the Ring could not be hidden or used, only destroyed in the fire where it was made. Frodo said he would take it."}
+{"index": {"_id": "rivendell-4"}}
+{"stop": "rivendell", "ta_date": "3018-12-25", "who": ["Frodo Baggins", "Bilbo Baggins"], "text": "Before the Company left Rivendell, Bilbo gave Frodo his sword Sting and a coat of mithril."}
+{"index": {"_id": "moria-1"}}
+{"stop": "moria", "ta_date": "3019-01-13", "who": ["Gandalf", "Frodo Baggins"], "text": "At the West-gate of Moria, the Watcher in the Water seized Frodo by the ankle before the Company fled inside."}
+{"index": {"_id": "moria-2"}}
+{"stop": "moria", "ta_date": "3019-01-15", "who": ["Gimli", "Gandalf"], "text": "In the Chamber of Mazarbul the Company found Balin's tomb and a torn book of records kept by his dwarves."}
+{"index": {"_id": "moria-3"}}
+{"stop": "moria", "ta_date": "3019-01-15", "who": ["Gandalf"], "text": "On the Bridge of Khazad-dûm, Gandalf stood against the Balrog and fell with it into the dark."}
+{"index": {"_id": "lothlorien-1"}}
+{"stop": "lothlorien", "ta_date": "3019-01-17", "who": ["Haldir", "Legolas", "Gimli"], "text": "Elves of Lothlórien led the Company blindfolded to Caras Galadhon. Gimli agreed only once everyone else was blindfolded too."}
+{"index": {"_id": "lothlorien-2"}}
+{"stop": "lothlorien", "ta_date": "3019-02-14", "who": ["Galadriel", "Frodo Baggins", "Samwise Gamgee"], "text": "In Lothlórien, Galadriel let Frodo look into her mirror, and he saw the Eye searching for him. She refused the Ring when he offered it to her."}
+{"index": {"_id": "lothlorien-3"}}
+{"stop": "lothlorien", "ta_date": "3019-02-16", "who": ["Galadriel", "Frodo Baggins"], "text": "Before the Company left Lothlórien, Galadriel gave Frodo a phial holding the light of Eärendil's star."}
+{"index": {"_id": "amon_hen-1"}}
+{"stop": "amon_hen", "ta_date": "3019-02-26", "who": ["Boromir", "Frodo Baggins"], "text": "On the slopes of Amon Hen, Boromir tried to take the Ring from Frodo, who put it on and ran."}
+{"index": {"_id": "amon_hen-2"}}
+{"stop": "amon_hen", "ta_date": "3019-02-26", "who": ["Boromir", "Merry Brandybuck", "Peregrin Took"], "text": "Boromir's horn was ringing in the woods below Amon Hen as orcs fell on Merry and Pippin."}
+{"index": {"_id": "amon_hen-3"}}
+{"stop": "amon_hen", "ta_date": "3019-02-26", "who": ["Frodo Baggins", "Samwise Gamgee"], "text": "Frodo took a boat to cross the river alone, but Sam waded in after him and nearly drowned."}
+{"index": {"_id": "mordor-1"}}
+{"stop": "mordor", "ta_date": "3019-03-14", "who": ["Samwise Gamgee", "Frodo Baggins"], "text": "In the tower of Cirith Ungol, Sam rescued Frodo and gave back the Ring he had been carrying."}
+{"index": {"_id": "mordor-2"}}
+{"stop": "mordor", "ta_date": "3019-03-18", "who": ["Frodo Baggins", "Samwise Gamgee"], "text": "The hobbits were caught up in a column of orcs on the road and marched north until they slipped away at a crossroads."}
+{"index": {"_id": "mordor-3"}}
+{"stop": "mordor", "ta_date": "3019-03-24", "who": ["Samwise Gamgee", "Frodo Baggins"], "text": "On the slopes of Mount Doom, Sam carried Frodo when he could no longer walk under the weight of the Ring."}
+{"index": {"_id": "mount_doom-1"}}
+{"stop": "mount_doom", "ta_date": "3019-03-25", "who": ["Frodo Baggins", "Gollum", "Sméagol"], "text": "In the Sammath Naur, Frodo claimed the Ring for himself. Gollum bit it from his finger and fell with it into the fire."}
+{"index": {"_id": "mount_doom-2"}}
+{"stop": "mount_doom", "ta_date": "3019-03-25", "who": ["Gwaihir", "Gandalf"], "text": "As the Ring was destroyed, Barad-dûr fell and the Nazgûl burned in the air. The eagles carried the hobbits out of the fire."}
+{"index": {"_id": "grey_havens-1"}}
+{"stop": "grey_havens", "ta_date": "3021-09-29", "who": ["Frodo Baggins", "Bilbo Baggins", "Gandalf"], "text": "Frodo sailed from the Grey Havens with Bilbo, Gandalf, Elrond and Galadriel. Sam watched the ship until it was gone."}
+
+PUT red_book
+{
+  "mappings": {
+    "properties": {
+      "stop": {
+        "type": "keyword"
+      },
+      "ta_date": {
+        "type": "keyword"
+      },
+      "who": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "text": {
+        "type": "text",
+        "analyzer": "standard"
+      }
+    }
+  }
+}
+
+POST red_book/_bulk?refresh=true
+{"index": {"_id": "red_book-1"}}
+{"stop": "rivendell", "ta_date": "3018-10-24", "who": ["Bilbo Baggins", "Frodo Baggins"], "text": "I asked Frodo to let me see the Ring once more, and I am ashamed of what happened next. The Rings of Power have brought nothing but grief."}
+{"index": {"_id": "red_book-2"}}
+{"stop": "rivendell", "ta_date": "3018-11-02", "who": ["Bilbo Baggins"], "text": "Translations from the Elvish, volume three: notes on the Rings of Power and the smiths of Eregion."}
+{"index": {"_id": "red_book-3"}}
+{"stop": "rivendell", "ta_date": "3018-11-10", "who": ["Bilbo Baggins", "Elrond"], "text": "Elrond's house is the best place for writing. Nobody hurries me and the food is excellent."}
+{"index": {"_id": "red_book-4"}}
+{"stop": "rivendell", "ta_date": "3018-12-01", "who": ["Bilbo Baggins"], "text": "There and Back Again: the chapter about the riddles in the dark still needs work."}
+
+PUT book_of_mazarbul
+{
+  "mappings": {
+    "properties": {
+      "entry": {
+        "type": "keyword"
+      }
+    }
+  }
+}
+
+POST book_of_mazarbul/_bulk?refresh=true
+{"index": {"_id": "mazarbul-1"}}
+{"entry": "2989-11-10 | Ori | We drove the orcs from the East-gate and took the first hall."}
+{"index": {"_id": "mazarbul-2"}}
+{"entry": "2989-11-12 | Ori | Balin set up his seat in the Chamber of Mazarbul. He is lord of Moria now."}
+{"index": {"_id": "mazarbul-3"}}
+{"entry": "2990-03-15 | Ori | We found true-silver in the deep lodes. Óin went to look for the upper armouries."}
+{"index": {"_id": "mazarbul-4"}}
+{"entry": "2994-11-10 | Ori | Balin was killed by an orc archer in Dimrill Dale while he looked into Mirrormere."}
+{"index": {"_id": "mazarbul-5"}}
+{"entry": "2994-11-14 | Ori | Orcs took the bridge and the second hall. We lost Frár, Lóni and Náli."}
+{"index": {"_id": "mazarbul-6"}}
+{"entry": "2994-12-01 | Ori | The Watcher took Óin near the West-gate. The pool blocks our way out."}
+{"index": {"_id": "mazarbul-7"}}
+{"entry": "2994-12-10 | Ori | The orc drums have not stopped for three days. We have barred the doors of this chamber."}
