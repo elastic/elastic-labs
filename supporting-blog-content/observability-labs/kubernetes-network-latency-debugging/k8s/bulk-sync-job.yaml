@@ -1,0 +1,18 @@
+# Incident 2, part 2: bulk-sync on worker3 sends to the receiver with four parallel streams.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bulk-sync
+  namespace: analytics
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      nodeSelector: {kubernetes.io/hostname: net-latency-worker3}
+      restartPolicy: Never
+      containers:
+        - name: bulk-sync
+          image: lab-tools:lab
+          imagePullPolicy: Never
+          # Duration in seconds; lab.sh sets it from NOISY_MIN.
+          command: ["iperf3", "-c", "iperf-receiver.analytics.svc.cluster.local", "-P", "4", "-t", "__DURATION__"]

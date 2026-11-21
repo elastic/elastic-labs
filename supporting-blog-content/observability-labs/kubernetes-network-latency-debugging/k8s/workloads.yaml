@@ -1,0 +1,106 @@
+# shop namespace: loadgen -> checkout (Go) -> inventory (Python, two replicas on worker2 and worker3).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: inventory}
+  template:
+    metadata:
+      labels: {app: inventory}
+      annotations:
+        instrumentation.opentelemetry.io/inject-python: "opentelemetry-operator-system/elastic-instrumentation"
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [net-latency-worker2, net-latency-worker3]}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels: {app: inventory}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: inventory
+          image: inventory:lab
+          imagePullPolicy: Never
+          ports: [{containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory
+  namespace: shop
+spec:
+  selector: {app: inventory}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: checkout}
+  template:
+    metadata:
+      labels: {app: checkout}
+      annotations:
+        # Go has no EDOT distribution: the code uses the OpenTelemetry Go SDK, and the operator
+        # only injects the exporter endpoint and the Kubernetes resource attributes.
+        instrumentation.opentelemetry.io/inject-sdk: "opentelemetry-operator-system/elastic-instrumentation"
+    spec:
+      nodeSelector: {kubernetes.io/hostname: net-latency-worker}
+      containers:
+        - name: checkout
+          image: checkout:lab
+          imagePullPolicy: Never
+          ports: [{containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout
+  namespace: shop
+spec:
+  selector: {app: checkout}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: loadgen}
+  template:
+    metadata:
+      labels: {app: loadgen}
+    spec:
+      nodeSelector: {kubernetes.io/hostname: net-latency-worker}
+      containers:
+        - name: loadgen
+          image: lab-tools:lab
+          imagePullPolicy: Never
+          command: ["python3", "-u", "/loadgen.py"]
+          env:
+            - {name: TARGET_URL, value: "http://checkout:8080/checkout"}
+            - {name: RATE, value: "5"}
