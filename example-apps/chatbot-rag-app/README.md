@@ -40,6 +40,7 @@ and configure its templated connection settings:
 * bedrock: [Amazon Bedrock](https://docs.aws.amazon.com/bedrock/)
 * openai: [OpenAI Platform](https://platform.openai.com/docs/overview) and
   services compatible with its API.
+* forge: [Forge](https://forge.tensorblock.co/) (OpenAI-compatible).
 * vertex: [Google Vertex AI](https://cloud.google.com/vertex-ai/docs)
 * mistral: [Mistral AI](https://docs.mistral.ai/)
 * cohere: [Cohere](https://docs.cohere.com/)
