@@ -1,5 +1,5 @@
 import React from "react";
-import ElasticsearchAPIConnector from "@elastic/search-ui-elasticsearch-connector";
+import { ApiProxyConnector } from "@elastic/search-ui-elasticsearch-connector/api-proxy";
 import {
   ErrorBoundary,
   SearchProvider,
@@ -11,22 +11,9 @@ import { Layout } from "@elastic/react-search-ui-views";
 import "@elastic/react-search-ui-views/lib/styles/styles.css";
 import AiSummary from "./AiSummary";
 
-const connector = new ElasticsearchAPIConnector(
-  {
-    host: "http://localhost:1337/api",
-    index: "search-labs-index",
-  },
-  (requestBody, requestState) => {
-    if (!requestState.searchTerm) return requestBody;
-    requestBody.query = {
-      semantic: {
-        query: requestState.searchTerm,
-        field: "semantic_text",
-      },
-    };
-    return requestBody;
-  }
-);
+const connector = new ApiProxyConnector({
+  basePath: "http://localhost:1337/api",
+});
 
 const config = {
   debug: true,

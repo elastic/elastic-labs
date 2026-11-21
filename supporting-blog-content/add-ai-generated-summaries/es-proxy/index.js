@@ -1,32 +1,45 @@
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import ElasticsearchAPIConnector from "@elastic/search-ui-elasticsearch-connector";
+import axios from "axios";
 
-const express = require("express");
-const cors = require("cors");
+dotenv.config();
+const { ELASTICSEARCH_URL, API_KEY } = process.env;
+
 const app = express();
-const axios = require("axios");
-
 app.use(express.json());
 app.use(cors());
 
-const { ELASTICSEARCH_URL, API_KEY } = process.env;
+const connector = new ElasticsearchAPIConnector(
+  {
+    host: ELASTICSEARCH_URL,
+    apiKey: API_KEY,
+    index: "search-labs-index",
+  },
+  (requestBody, requestState) => {
+    if (!requestState.searchTerm) return requestBody;
 
-// Handle all _search requests
-app.post("/api/:index/_search", async (req, res) => {
+    requestBody.query = {
+      semantic: {
+        query: requestState.searchTerm,
+        field: "semantic_text",
+      },
+    };
+
+    return requestBody;
+  }
+);
+
+app.post("/api/search", async (req, res) => {
+  const { state, queryConfig } = req.body;
+
   try {
-    const response = await axios.post(
-      `${ELASTICSEARCH_URL}/${req.params.index}/_search`,
-      req.body,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `ApiKey ${API_KEY}`,
-        },
-      }
-    );
-    res.json(response.data);
+    const response = await connector.onSearch(state, queryConfig);
+    res.json(response);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: error.message });
+    console.error("Error during search:", error);
+    return res.status(500).json({ error: error.message });
   }
 });
 

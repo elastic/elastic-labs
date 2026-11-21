@@ -4,8 +4,7 @@
   "private": true,
   "dependencies": {
     "@elastic/react-search-ui": "latest",
-    "@elastic/search-ui-app-search-connector": "latest",
-    "@elastic/search-ui-elasticsearch-connector": "^1.21.5",
+    "@elastic/search-ui-elasticsearch-connector": "^1.24.1",
     "antd": "^5.20.2",
     "axios": "^1.7.4",
     "html-react-parser": "^5.1.12",
