@@ -1,0 +1,178 @@
+{
+  "profile": {
+    "shards": [
+      {
+        "id": "[S9MupHgDT0aX7SH60r_Paw][wikipedia-bbq][0]",
+        "node_id": "S9MupHgDT0aX7SH60r_Paw",
+        "shard_id": 0,
+        "index": "wikipedia-bbq",
+        "cluster": "(local)",
+        "dfs": {
+          "statistics": {
+            "type": "statistics",
+            "description": "collect term statistics",
+            "time_in_nanos": 16599,
+            "breakdown": {
+              "term_statistics": 0,
+              "create_weight": 11081,
+              "collection_statistics": 0,
+              "collection_statistics_count": 0,
+              "term_statistics_count": 0,
+              "rewrite_count": 0,
+              "create_weight_count": 1,
+              "rewrite": 0
+            }
+          },
+          "knn": [
+            {
+              "vector_operations_count": 54730,
+              "query": [
+                {
+                  "type": "FunctionScoreQuery",
+                  "description": "FunctionScoreQuery(DocAndScoreQuery[0,...][0.9792969,...],0.9792969, scored by VectorSimilarityFloatValueSource(embedding, [-4.5830113E-4,...], DOT_PRODUCT))",
+                  "time_in_nanos": 204592902,
+                  "breakdown": {
+                    "set_min_competitive_score_count": 0,
+                    "match_count": 0,
+                    "shallow_advance_count": 0,
+                    "set_min_competitive_score": 0,
+                    "next_doc": 38591,
+                    "match": 0,
+                    "next_doc_count": 476,
+                    "score_count": 450,
+                    "compute_max_score_count": 0,
+                    "compute_max_score": 0,
+                    "advance": 0,
+                    "advance_count": 0,
+                    "count_weight_count": 0,
+                    "score": 204057410,
+                    "build_scorer_count": 54,
+                    "create_weight": 26529,
+                    "shallow_advance": 0,
+                    "count_weight": 0,
+                    "create_weight_count": 1,
+                    "build_scorer": 470372
+                  }
+                },
+                {
+                  "type": "KnnScoreDocQuery",
+                  "description": "ScoreAndDocQuery",
+                  "time_in_nanos": 47460,
+                  "breakdown": {
+                    "set_min_competitive_score_count": 0,
+                    "match_count": 0,
+                    "shallow_advance_count": 0,
+                    "set_min_competitive_score": 0,
+                    "next_doc": 10294,
+                    "match": 0,
+                    "next_doc_count": 175,
+                    "score_count": 150,
+                    "compute_max_score_count": 0,
+                    "compute_max_score": 0,
+                    "advance": 0,
+                    "advance_count": 0,
+                    "count_weight_count": 0,
+                    "score": 8381,
+                    "build_scorer_count": 53,
+                    "create_weight": 6264,
+                    "shallow_advance": 0,
+                    "count_weight": 0,
+                    "create_weight_count": 1,
+                    "build_scorer": 22521
+                  }
+                }
+              ],
+              "rewrite_time": 293284288,
+              "collector": [
+                {
+                  "name": "TopScoreDocCollector",
+                  "reason": "search_top_hits",
+                  "time_in_nanos": 90747
+                }
+              ]
+            }
+          ]
+        },
+        "searches": [
+          {
+            "query": [
+              {
+                "type": "ConstantScoreQuery",
+                "description": "ConstantScore(ScoreAndDocQuery)",
+                "time_in_nanos": 90989,
+                "breakdown": {
+                  "set_min_competitive_score_count": 0,
+                  "match_count": 0,
+                  "shallow_advance_count": 0,
+                  "set_min_competitive_score": 0,
+                  "next_doc": 0,
+                  "match": 0,
+                  "next_doc_count": 0,
+                  "score_count": 0,
+                  "compute_max_score_count": 0,
+                  "compute_max_score": 0,
+                  "advance": 0,
+                  "advance_count": 0,
+                  "count_weight_count": 28,
+                  "score": 0,
+                  "build_scorer_count": 0,
+                  "create_weight": 74217,
+                  "shallow_advance": 0,
+                  "count_weight": 16772,
+                  "create_weight_count": 1,
+                  "build_scorer": 0
+                },
+                "children": [
+                  {
+                    "type": "KnnScoreDocQuery",
+                    "description": "ScoreAndDocQuery",
+                    "time_in_nanos": 16784,
+                    "breakdown": {
+                      "set_min_competitive_score_count": 0,
+                      "match_count": 0,
+                      "shallow_advance_count": 0,
+                      "set_min_competitive_score": 0,
+                      "next_doc": 0,
+                      "match": 0,
+                      "next_doc_count": 0,
+                      "score_count": 0,
+                      "compute_max_score_count": 0,
+                      "compute_max_score": 0,
+                      "advance": 0,
+                      "advance_count": 0,
+                      "count_weight_count": 28,
+                      "score": 0,
+                      "build_scorer_count": 0,
+                      "create_weight": 6684,
+                      "shallow_advance": 0,
+                      "count_weight": 10100,
+                      "create_weight_count": 1,
+                      "build_scorer": 0
+                    }
+                  }
+                ]
+              }
+            ],
+            "rewrite_time": 3988,
+            "collector": [
+              {
+                "name": "QueryPhaseCollector",
+                "reason": "search_query_phase",
+                "time_in_nanos": 120447,
+                "children": [
+                  {
+                    "name": "PartialHitCountCollector",
+                    "reason": "search_count",
+                    "time_in_nanos": 78251
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "aggregations": []
+      }
+    ]
+  }
+}
+
