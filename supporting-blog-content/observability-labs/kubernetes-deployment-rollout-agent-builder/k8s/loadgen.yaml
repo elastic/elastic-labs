@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: loadgen}
+  template:
+    metadata:
+      labels: {app: loadgen}
+    spec:
+      containers:
+        - name: loadgen
+          image: loadgen:lab
+          imagePullPolicy: Never
+          env:
+            - {name: TARGET_URL, value: "http://orders:8080/orders"}
+            - {name: RATE, value: "8"}

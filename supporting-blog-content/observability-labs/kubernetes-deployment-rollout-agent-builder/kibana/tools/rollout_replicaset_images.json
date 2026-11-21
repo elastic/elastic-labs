@@ -1,0 +1,22 @@
+{
+  "id": "rollout_replicaset_images",
+  "type": "esql",
+  "description": "Container image of each ReplicaSet of one Kubernetes Deployment over the last 30 minutes, from the k8s_cluster receiver metrics, with the last time each ReplicaSet reported pods. Use it to find the image of the last healthy ReplicaSet before proposing a rollback, for example orders:1.4.0. The image is written as in the Deployment spec (Docker Hub library images without the docker.io/library/ prefix), so it can be passed as is to rollback_deployment.",
+  "tags": [
+    "kubernetes",
+    "rollout"
+  ],
+  "configuration": {
+    "params": {
+      "namespace": {
+        "type": "string",
+        "description": "Kubernetes namespace, for example shop"
+      },
+      "deployment": {
+        "type": "string",
+        "description": "Deployment name, for example orders"
+      }
+    },
+    "query": "FROM metrics-k8sclusterreceiver.otel-default\n| WHERE @timestamp > NOW() - 30 minutes\n    AND k8s.namespace.name == ?namespace AND k8s.deployment.name == ?deployment\n    AND k8s.replicaset.name IS NOT NULL AND container.image.name IS NOT NULL\n| EVAL image = CONCAT(REPLACE(container.image.name, \"^docker\\\\.io/library/\", \"\"), \":\", resource.attributes.container.image.tag)\n| STATS last_seen = MAX(@timestamp), pods = COUNT_DISTINCT(k8s.pod.name)\n    BY k8s.replicaset.name, image\n| SORT last_seen DESC"
+  }
+}
