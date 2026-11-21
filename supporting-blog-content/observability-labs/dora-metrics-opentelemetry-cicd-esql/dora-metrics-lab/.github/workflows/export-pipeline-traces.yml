@@ -1,0 +1,24 @@
+name: Export pipeline traces
+
+on:
+  workflow_run:
+    workflows: ["Deliver checkout"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dash0hq/otel-cicd-action@v4.2.0
+        with:
+          otlpEndpoint: ${{ vars.ELASTIC_OTLP_ENDPOINT }}/v1/traces
+          otlpHeaders: Authorization=ApiKey ${{ secrets.ELASTIC_API_KEY }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          runId: ${{ github.event.workflow_run.id }}
+          extraAttributes: deployment.environment.name=${{ github.event.workflow_run.event == 'push' && 'production' || 'ci' }}
