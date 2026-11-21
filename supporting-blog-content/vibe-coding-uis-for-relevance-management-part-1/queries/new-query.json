@@ -1,0 +1,16 @@
+{
+  "query": {
+    "multi_match": {
+      "query": "{{term}}",
+      "fields": [
+        "name^2",
+        "description",
+        "category",
+        "brand^2"
+      ],
+      "type": "best_fields"
+    }
+  },
+  "size": 100,
+  "from": 0
+}
