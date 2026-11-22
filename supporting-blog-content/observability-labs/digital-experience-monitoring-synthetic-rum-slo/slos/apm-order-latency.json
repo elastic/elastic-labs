@@ -1,0 +1,20 @@
+{
+  "name": "Order API latency",
+  "description": "Share of POST /api/orders requests that the shop answers in under 1 second.",
+  "indicator": {
+    "type": "sli.apm.transactionDuration",
+    "params": {
+      "service": "bean-box-shop",
+      "environment": "dem-lab",
+      "transactionType": "request",
+      "transactionName": "POST /api/orders",
+      "threshold": 1000,
+      "filter": "",
+      "index": "metrics-apm*,apm-*,metrics-*.otel-*"
+    }
+  },
+  "timeWindow": { "duration": "7d", "type": "rolling" },
+  "budgetingMethod": "occurrences",
+  "objective": { "target": 0.99 },
+  "tags": ["bean-box", "checkout"]
+}

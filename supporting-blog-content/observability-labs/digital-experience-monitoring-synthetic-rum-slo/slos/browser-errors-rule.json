@@ -1,0 +1,20 @@
+{
+  "name": "Browser errors by browser",
+  "rule_type_id": "observability.rules.custom_threshold",
+  "consumer": "logs",
+  "schedule": { "interval": "1m" },
+  "tags": ["bean-box", "checkout"],
+  "params": {
+    "criteria": [
+      { "comparator": ">", "metrics": [{ "name": "A", "aggType": "count" }], "threshold": [5], "timeSize": 10, "timeUnit": "m" }
+    ],
+    "alertOnNoData": false,
+    "alertOnGroupDisappear": false,
+    "groupBy": ["resource.attributes.browser.name"],
+    "searchConfiguration": {
+      "index": { "title": "logs-generic.otel-dem", "timeFieldName": "@timestamp" },
+      "query": { "query": "service.name : \"bean-box-web\" and event_name : \"exception\"", "language": "kuery" }
+    }
+  },
+  "actions": []
+}

@@ -1,0 +1,6 @@
+{
+  "name": "bean-box-visitors",
+  "private": true,
+  "type": "module",
+  "dependencies": { "playwright": "1.64.1" }
+}

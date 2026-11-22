@@ -1,0 +1,27 @@
+{
+  "name": "Page load speed (LCP) by device",
+  "description": "Share of visitor page loads with Largest Contentful Paint at or under 2.5 s, per device class (synthetic runs excluded).",
+  "indicator": {
+    "type": "sli.kql.custom",
+    "params": {
+      "index": "logs-generic.otel-dem",
+      "filter": "service.name : \"bean-box-web\" and event_name : \"browser.web_vital\" and attributes.browser.web_vital.name : \"lcp\" and not user_agent.original : *Elastic/Synthetics*",
+      "good": "attributes.browser.web_vital.value <= 2500",
+      "total": "",
+      "timestampField": "@timestamp"
+    }
+  },
+  "groupBy": "resource.attributes.browser.mobile",
+  "timeWindow": {
+    "duration": "7d",
+    "type": "rolling"
+  },
+  "budgetingMethod": "occurrences",
+  "objective": {
+    "target": 0.95
+  },
+  "tags": [
+    "bean-box",
+    "checkout"
+  ]
+}

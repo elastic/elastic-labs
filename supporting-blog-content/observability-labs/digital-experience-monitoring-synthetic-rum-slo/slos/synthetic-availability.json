@@ -1,0 +1,41 @@
+{
+  "name": "Checkout journey availability",
+  "description": "Share of synthetic checkout journeys (3 locations, every 3 minutes) that complete an order with the test card.",
+  "indicator": {
+    "type": "sli.synthetics.availability",
+    "params": {
+      "index": "synthetics-*",
+      "monitorIds": [
+        {
+          "value": "dem-checkout-journey-bean-box-dem-default",
+          "label": "Checkout journey"
+        }
+      ],
+      "projects": [
+        {
+          "value": "bean-box-dem",
+          "label": "bean-box-dem"
+        }
+      ],
+      "tags": [],
+      "filter": ""
+    }
+  },
+  "timeWindow": {
+    "duration": "7d",
+    "type": "rolling"
+  },
+  "budgetingMethod": "occurrences",
+  "objective": {
+    "target": 0.99
+  },
+  "tags": [
+    "bean-box",
+    "checkout"
+  ],
+  "groupBy": [
+    "monitor.name",
+    "observer.geo.name",
+    "monitor.id"
+  ]
+}
