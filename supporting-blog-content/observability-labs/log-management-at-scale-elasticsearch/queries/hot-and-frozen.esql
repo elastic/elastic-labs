@@ -1,0 +1,6 @@
+FROM logs.otel.storefront METADATA _index
+| WHERE attributes.http.response.status_code >= 500
+| EVAL tier = CASE(STARTS_WITH(_index, "partial-"), "frozen", "hot")
+| STATS errors = COUNT(*) BY tier, _index
+| SORT tier
+| LIMIT 10

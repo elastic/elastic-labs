@@ -1,0 +1,7 @@
+FROM logs.otel.*
+| EVAL service.name = resource.attributes.service.name
+| STATS lines = COUNT(*), raw_mb = ROUND(SUM(LENGTH(body.text)) / 1048576.0, 1) BY service.name
+| LOOKUP JOIN service-owners ON service.name
+| KEEP team, cost_center, service.name, lines, raw_mb
+| SORT raw_mb DESC
+| LIMIT 10

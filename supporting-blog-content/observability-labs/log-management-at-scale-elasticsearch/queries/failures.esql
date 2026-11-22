@@ -1,0 +1,4 @@
+FROM logs.otel.orders::failures
+| STATS failed = COUNT(*) BY error.message
+| SORT failed DESC
+| LIMIT 5

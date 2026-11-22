@@ -1,0 +1,19 @@
+services:
+  shoplogs:
+    image: python:3.13-slim
+    working_dir: /app
+    volumes: [./generator:/app, shop-logs:/var/log/shop]
+    command: ["python3", "shoplogs.py", "--out", "/var/log/shop", "--rate", "${RATE:-2000}",
+              "--minutes", "${MINUTES:-100}", "--storm-at", "${STORM_AT:-60}", "--storm-minutes", "10"]
+  collector:
+    image: docker.elastic.co/elastic-agent/elastic-otel-collector:9.5.6
+    hostname: shop-node-1
+    # COLLECTOR_CONFIG=otel-no-recombine.yml reproduces the failure-store section (stack traces split into separate records)
+    command: ["--config", "/etc/otel.yml"]
+    environment:
+      ELASTIC_ENDPOINT: ${ELASTIC_ENDPOINT}
+      ELASTIC_API_KEY: ${ELASTIC_API_KEY}
+    volumes: ["./collector/${COLLECTOR_CONFIG:-otel.yml}:/etc/otel.yml:ro", shop-logs:/var/log/shop:ro, collector-state:/var/lib/otelcol/file_storage]
+volumes:
+  shop-logs: {}
+  collector-state: {}
