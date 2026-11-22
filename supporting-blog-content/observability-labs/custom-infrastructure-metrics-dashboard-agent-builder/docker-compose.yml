@@ -1,0 +1,16 @@
+name: starlink-lab
+
+services:
+  collector:
+    image: docker.elastic.co/elastic-agent/elastic-otel-collector:9.5.6
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      # Docker Compose reads these from the .env next to this file.
+      ES_URL: ${ELASTICSEARCH_URL}
+      ES_API_KEY: ${ELASTICSEARCH_API_KEY}
+      COLLECTOR_TOKEN: ${COLLECTOR_TOKEN}
+    volumes:
+      - ./collector/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "14318:4318"
+    restart: unless-stopped
