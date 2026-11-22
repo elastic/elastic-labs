@@ -1,0 +1,35 @@
+extensions:
+  bearertokenauth:
+    token: ${env:COLLECTOR_TOKEN}
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        auth:
+          authenticator: bearertokenauth
+
+processors:
+  # Route every Starlink metric to its own data stream: metrics-starlink.otel-default
+  resource/starlink:
+    attributes:
+      - key: data_stream.dataset
+        value: starlink
+        action: upsert
+  batch: {}
+
+exporters:
+  elasticsearch:
+    endpoint: ${env:ES_URL}
+    api_key: ${env:ES_API_KEY}
+    # OTel-native mapping is the default. Do not add mapping::mode: it is ignored in EDOT 9.5
+    # and the collector refuses to start with it from 9.5.8 / 9.6.1.
+
+service:
+  extensions: [bearertokenauth]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [resource/starlink, batch]
+      exporters: [elasticsearch]
