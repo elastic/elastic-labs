@@ -1,0 +1,74 @@
+{
+  "name": "__NAME__ burn rate",
+  "rule_type_id": "slo.rules.burnRate",
+  "consumer": "slo",
+  "schedule": {
+    "interval": "1m"
+  },
+  "tags": [
+    "bean-box",
+    "checkout"
+  ],
+  "params": {
+    "sloId": "__SLO_ID__",
+    "windows": [
+      {
+        "id": "page-fast",
+        "actionGroup": "slo.burnRate.alert",
+        "burnRateThreshold": 3.36,
+        "maxBurnRateThreshold": 168,
+        "longWindow": {
+          "value": 1,
+          "unit": "h"
+        },
+        "shortWindow": {
+          "value": 5,
+          "unit": "m"
+        }
+      },
+      {
+        "id": "page-slow",
+        "actionGroup": "slo.burnRate.high",
+        "burnRateThreshold": 1.4,
+        "maxBurnRateThreshold": 28,
+        "longWindow": {
+          "value": 6,
+          "unit": "h"
+        },
+        "shortWindow": {
+          "value": 30,
+          "unit": "m"
+        }
+      },
+      {
+        "id": "ticket-fast",
+        "actionGroup": "slo.burnRate.medium",
+        "burnRateThreshold": 0.7,
+        "maxBurnRateThreshold": 7,
+        "longWindow": {
+          "value": 24,
+          "unit": "h"
+        },
+        "shortWindow": {
+          "value": 120,
+          "unit": "m"
+        }
+      },
+      {
+        "id": "ticket-slow",
+        "actionGroup": "slo.burnRate.low",
+        "burnRateThreshold": 0.234,
+        "maxBurnRateThreshold": 2.3,
+        "longWindow": {
+          "value": 72,
+          "unit": "h"
+        },
+        "shortWindow": {
+          "value": 360,
+          "unit": "m"
+        }
+      }
+    ]
+  },
+  "actions": []
+}

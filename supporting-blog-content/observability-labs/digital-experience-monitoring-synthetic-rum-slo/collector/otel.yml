@@ -1,0 +1,56 @@
+# EDOT Collector in gateway mode for the Bean Box lab.
+# Receives OTLP/HTTP from the shop (EDOT Node) and from browsers (EDOT Browser, forwarded by the shop's /otlp/ route).
+# The elasticapm processor and connector add the APM fields and the pre-aggregated
+# transaction metrics that the APM UI and APM SLOs read.
+extensions:
+  bearertokenauth:
+    token: ${env:COLLECTOR_TOKEN}
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: "[::]:4318"
+        auth:
+          authenticator: bearertokenauth
+
+connectors:
+  elasticapm: {}
+
+processors:
+  batch:
+    send_batch_size: 1000
+    timeout: 1s
+  batch/metrics:
+    send_batch_max_size: 0
+    timeout: 1s
+  elasticapm: {}
+  # Lab only: keep this lab's data in its own data streams (*-dem) on a shared cluster.
+  resource/namespace:
+    attributes:
+      - { key: data_stream.namespace, value: dem, action: upsert }
+
+exporters:
+  elasticsearch/otel:
+    endpoints: [ "${env:ELASTIC_ENDPOINT}" ]
+    api_key: ${env:ELASTIC_API_KEY}
+
+service:
+  extensions: [bearertokenauth]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource/namespace, batch, elasticapm]
+      exporters: [elasticapm, elasticsearch/otel]
+    logs:
+      receivers: [otlp]
+      processors: [resource/namespace, batch]
+      exporters: [elasticapm, elasticsearch/otel]
+    metrics:
+      receivers: [otlp]
+      processors: [resource/namespace, batch/metrics]
+      exporters: [elasticsearch/otel]
+    metrics/aggregated-otel-metrics:
+      receivers: [elasticapm]
+      processors: [resource/namespace]
+      exporters: [elasticsearch/otel]

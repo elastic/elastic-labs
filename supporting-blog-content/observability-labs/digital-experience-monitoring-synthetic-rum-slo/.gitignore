@@ -1,0 +1,7 @@
+.env
+.env.docker
+runs/
+data/*.ndjson
+.ipynb_checkpoints/
+__pycache__/
+.venv/

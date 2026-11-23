@@ -1,0 +1,26 @@
+{
+  "name": "Checkout success in the browser",
+  "description": "Share of order requests sent from visitors' browsers (EDOT Browser fetch spans, synthetic runs excluded) that succeed.",
+  "indicator": {
+    "type": "sli.kql.custom",
+    "params": {
+      "index": "traces-generic.otel-dem",
+      "filter": "service.name : \"bean-box-web\" and url.full : */api/orders and not user_agent.original : *Elastic/Synthetics*",
+      "good": "event.outcome : \"success\"",
+      "total": "",
+      "timestampField": "@timestamp"
+    }
+  },
+  "timeWindow": {
+    "duration": "7d",
+    "type": "rolling"
+  },
+  "budgetingMethod": "occurrences",
+  "objective": {
+    "target": 0.99
+  },
+  "tags": [
+    "bean-box",
+    "checkout"
+  ]
+}
