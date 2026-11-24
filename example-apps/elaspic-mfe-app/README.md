@@ -11,15 +11,24 @@ Stack and routing details: [PROJECT.md](./PROJECT.md). Per-service docs: [api](.
 | Path | Role |
 | --- | --- |
 | `api/` | Express API ([README](./api/README.md)) |
-| `ui/` | React SPA ([README](./ui/README.md)) |
+| `ui/` | Vite host (bootstrap only) ([README](./ui/README.md)) |
+| `packages/shell/` | Shell routing and layout (`@elaspic/shell`) |
+| `packages/platform-sdk/` | API client and auth (`@elaspic/platform-sdk`) |
+| `packages/ui-kit/` | Shared EUI components (`@elaspic/ui-kit`) |
+| `packages/mfe-identity/` | Login and register (`@elaspic/mfe-identity`) |
+| `packages/mfe-pics/` | Gallery MFE (`@elaspic/mfe-pics`) |
+| `packages/mfe-users/` | Users MFE (`@elaspic/mfe-users`) |
 | `nginx/` | Public reverse proxy ([README](./nginx/README.md)) |
 | `database/` | MySQL init DDL ([README](./database/README.md)) |
 | `docker-compose.yml` | Full stack orchestration |
+| `MFE_PLAN.md` | Multi-team microfrontend rollout plan |
+| `docs/MFE_*.md` | Team ownership, remote contract, governance (Phase 0) |
+| `.github/CODEOWNERS` | Review routing per team |
 
 ## Prerequisites
 
 - Docker with Compose v2
-- (Optional) Node.js 22 for local API/UI development
+- (Optional) Node.js 22 for local API/UI development (`npm install` at **repo root** for the UI workspace)
 
 ## Setup and run with Docker Compose
 

@@ -1,0 +1,21 @@
+{
+  "name": "@elaspic/ui-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('@elaspic/ui-kit: consumed by elaspic-ui bundle')\""
+  },
+  "dependencies": {
+    "@elaspic/platform-sdk": "0.1.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "@elastic/eui": "^95.0.0"
+  }
+}

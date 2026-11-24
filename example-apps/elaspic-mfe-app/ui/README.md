@@ -1,6 +1,30 @@
-# Elaspic UI
+# Elaspic UI host
 
-React single-page application using [Elastic UI (EUI)](https://eui.elastic.co/). A shell layout (header, sidebar) hosts route-level **micro frontend** modules loaded with `React.lazy` and `Suspense`.
+Thin **Vite host** that boots the application: EUI theme/icons, `AuthProvider`, and `App` from `@elaspic/shell`. Feature code lives in workspace packages under `packages/`.
+
+## Workspace packages
+
+| Package | Team | Role |
+| --- | --- | --- |
+| `@elaspic/shell` | platform | Routing, layout, auth gates, error routes |
+| `@elaspic/platform-sdk` | platform | API client, session token, `AuthProvider` / `useAuth` |
+| `@elaspic/ui-kit` | platform | Shared EUI components |
+| `@elaspic/mfe-identity` | identity | Login, register |
+| `@elaspic/mfe-pics` | pics | My gallery |
+| `@elaspic/mfe-users` | users | User directory and galleries |
+
+Still **one browser bundle** (Phase 2); Module Federation comes in Phase 3.
+
+This host tree:
+
+```
+src/
+  main.jsx    # EuiProvider, router, AuthProvider, shell App
+  icons.js    # EUI icon preload for Vite
+  app.css     # Shell layout utilities
+```
+
+Screens and API behaviour are documented in the sections below (unchanged product behaviour).
 
 Elaspic shows a gallery of photos the user has uploaded. Screens:
 
@@ -11,29 +35,6 @@ Elaspic shows a gallery of photos the user has uploaded. Screens:
 | Gallery | Grid of thumbnails plus **Add** to upload |
 | Detail | Full-size image and comments (tags out of scope for v1) |
 | Users | Browse other users and their galleries (authenticated) |
-
-## Architecture
-
-The UI is a **single monorepo** (one build/deployable service). Team boundaries are **route-owned micro frontend modules** (folders/packages: login, register, pics, users), not separate remote bundles.
-
-The shell owns layout and routing; each route **lazy-loads** its module via `React.lazy()` + `Suspense`.
-
-```
-src/
-  main.jsx                 # EuiProvider, router, AuthProvider
-  App.jsx                  # Top-level routes and auth gate
-  api/client.js            # /api fetch wrapper + sessionStorage token
-  auth/AuthContext.jsx     # Login state, GET /me for header username
-  shell/                   # Layout chrome (hidden on /login, /register)
-  microfrontends/
-    login/                 # /login
-    register/              # /register
-    pics/                  # /pics, /pics/:picId
-    users/                 # /users, /users/:userId, …/pics/:picId
-  components/CommentPanel.jsx
-```
-
-Built with Vite, served as static files (nginx in the UI container), and reached through the edge **nginx** proxy (default host port `8080` in Docker Compose).
 
 ## Shell, routing, and auth
 
@@ -97,14 +98,23 @@ Typical calls include: `POST /api/register`, `POST /api/login`, `GET /api/me`, `
 | --- | --- | --- |
 | `VITE_PUBLIC_API_PREFIX` | `/api` | Browser-relative API base (build-time; maps to `PUBLIC_API_PREFIX` in compose docs) |
 
-Canonical compose variable name for the stack is `PUBLIC_API_PREFIX` (see `../PROJECT.md`).
+Canonical compose variable name for the stack is `PUBLIC_API_PREFIX` (see root `README.md`).
 
 ## Local development
 
+Install once from the **repository root** (npm workspaces link all packages):
+
+```bash
+cd ..   # repo root
+npm install
+npm run dev:ui
+```
+
+Or from `ui/` after a root `npm install`:
+
 ```bash
 cd ui
-npm install
 npm run dev
 ```
 
-Run the API on port 3000 or adjust `vite.config.js` proxy. For nginx, database, and full stack setup see root `README.md` and `../PROJECT.md`.
+Run the API on port 3000 or adjust `vite.config.js` proxy. For nginx, database, and full stack setup see root `README.md`.

@@ -38,7 +38,8 @@ services:
 
   ui:
     build:
-      context: ./ui
+      context: .
+      dockerfile: ui/Dockerfile
       args:
         VITE_PUBLIC_API_PREFIX: ${PUBLIC_API_PREFIX:-/api}
     restart: unless-stopped
