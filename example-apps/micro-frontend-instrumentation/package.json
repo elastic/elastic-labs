@@ -1,0 +1,17 @@
+{
+  "name": "micro-frontend-instrumentation",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @mfe/contracts && concurrently -n shell,auth,dashboard -c blue,green,magenta \"npm run dev -w @mfe/shell\" \"npm run dev -w @mfe/auth\" \"npm run dev -w @mfe/dashboard\"",
+    "build": "npm run build -w @mfe/contracts && npm run build -w @mfe/auth && npm run build -w @mfe/dashboard && npm run build -w @mfe/shell",
+    "build:shell": "npm run build -w @mfe/shell",
+    "build:auth": "npm run build -w @mfe/auth",
+    "build:dashboard": "npm run build -w @mfe/dashboard"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -1,0 +1,74 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.shell-brand a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shell-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.shell-nav a {
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.shell-nav a:hover {
+  color: #fff;
+}
+
+.shell-main {
+  min-height: calc(100vh - 3rem);
+}
+
+.home {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem;
+}
+
+.home-links {
+  line-height: 1.8;
+}
+
+.remote-loading {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+code {
+  font-size: 0.9em;
+  background: #e2e8f0;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

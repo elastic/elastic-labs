@@ -1,0 +1,32 @@
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.auth
+      args:
+        PUBLIC_PATH: http://localhost:3001/
+    ports:
+      - "3001:80"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+      args:
+        PUBLIC_PATH: http://localhost:3002/
+    ports:
+      - "3002:80"
+
+  shell:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.shell
+      args:
+        PUBLIC_PATH: http://localhost:3000/
+        AUTH_REMOTE_URL: http://localhost:3001/remoteEntry.js
+        DASHBOARD_REMOTE_URL: http://localhost:3002/remoteEntry.js
+    ports:
+      - "3000:80"
+    depends_on:
+      - auth
+      - dashboard
