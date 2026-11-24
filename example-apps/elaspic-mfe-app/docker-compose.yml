@@ -1,0 +1,61 @@
+services:
+  database:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-elaspic}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - elaspic-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: database
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-elaspic}
+      API_PORT: 3000
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-86400}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5242880}
+      THUMBNAIL_MAX_EDGE_PX: ${THUMBNAIL_MAX_EDGE_PX:-320}
+      THUMBNAIL_JPEG_QUALITY: ${THUMBNAIL_JPEG_QUALITY:-80}
+    depends_on:
+      database:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: ./ui
+      args:
+        VITE_PUBLIC_API_PREFIX: ${PUBLIC_API_PREFIX:-/api}
+    restart: unless-stopped
+
+  nginx:
+    build: ./nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:-api:3000}
+      UI_UPSTREAM: ${UI_UPSTREAM:-ui:80}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:9/}
+      ELASTIC_OTEL_API_KEY: ${ELASTIC_OTEL_API_KEY:-}
+    depends_on:
+      - api
+      - ui
+
+volumes:
+  elaspic-mysql-data:
