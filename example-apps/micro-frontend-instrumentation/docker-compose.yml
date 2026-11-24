@@ -1,10 +1,21 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    environment:
+      JWT_SECRET: dev-docker-compose-secret
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002
+    ports:
+      - "4000:4000"
+
   auth:
     build:
       context: .
       dockerfile: docker/Dockerfile.auth
       args:
         PUBLIC_PATH: http://localhost:3001/
+        AUTH_API_URL: http://localhost:4000
     ports:
       - "3001:80"
 
@@ -28,5 +39,6 @@ services:
     ports:
       - "3000:80"
     depends_on:
+      - api
       - auth
       - dashboard

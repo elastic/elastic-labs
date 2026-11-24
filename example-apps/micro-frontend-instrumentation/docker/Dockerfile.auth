@@ -10,7 +10,9 @@ RUN npm install
 RUN npm run build -w @mfe/contracts
 
 ARG PUBLIC_PATH=http://localhost:3001/
+ARG AUTH_API_URL=http://localhost:4000
 ENV PUBLIC_PATH=$PUBLIC_PATH
+ENV AUTH_API_URL=$AUTH_API_URL
 
 RUN npm run build -w @mfe/auth
 

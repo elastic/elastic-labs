@@ -68,6 +68,12 @@
   font-size: 0.85rem;
 }
 
+.field-error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
 .auth-footer {
   margin: 1.25rem 0 0;
   font-size: 0.9rem;

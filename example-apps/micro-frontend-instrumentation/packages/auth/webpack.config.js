@@ -1,4 +1,5 @@
 const path = require("path");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const {
@@ -32,6 +33,11 @@ module.exports = {
     ],
   },
   plugins: [
+    new webpack.DefinePlugin({
+      "process.env.AUTH_API_URL": JSON.stringify(
+        process.env.AUTH_API_URL || "http://localhost:4000"
+      ),
+    }),
     new ModuleFederationPlugin({
       name: "auth",
       filename: "remoteEntry.js",

@@ -5,8 +5,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build -w @mfe/contracts && concurrently -n shell,auth,dashboard -c blue,green,magenta \"npm run dev -w @mfe/shell\" \"npm run dev -w @mfe/auth\" \"npm run dev -w @mfe/dashboard\"",
-    "build": "npm run build -w @mfe/contracts && npm run build -w @mfe/auth && npm run build -w @mfe/dashboard && npm run build -w @mfe/shell",
+    "dev": "npm run build -w @mfe/contracts && concurrently -n shell,auth,dashboard,api -c blue,green,magenta,yellow \"npm run dev -w @mfe/shell\" \"npm run dev -w @mfe/auth\" \"npm run dev -w @mfe/dashboard\" \"npm run dev -w @mfe/api\"",
+    "build": "npm run build -w @mfe/contracts && npm run build -w @mfe/api && npm run build -w @mfe/auth && npm run build -w @mfe/dashboard && npm run build -w @mfe/shell",
+    "build:api": "npm run build -w @mfe/api",
     "build:shell": "npm run build -w @mfe/shell",
     "build:auth": "npm run build -w @mfe/auth",
     "build:dashboard": "npm run build -w @mfe/dashboard"

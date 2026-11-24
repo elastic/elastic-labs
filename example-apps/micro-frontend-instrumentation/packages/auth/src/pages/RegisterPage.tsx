@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authClient } from "../api/authClient";
+import { authClient, persistSession } from "../api/authClient";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -8,11 +8,13 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     setSubmitting(true);
     const result = await authClient.register({
       email,
@@ -22,8 +24,10 @@ export default function RegisterPage() {
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error.message);
+      setFieldErrors(result.error.fieldErrors ?? {});
       return;
     }
+    persistSession(result.data);
     navigate("/dashboard");
   }
 
@@ -41,6 +45,9 @@ export default function RegisterPage() {
             onChange={(e) => setDisplayName(e.target.value)}
             required
           />
+          {fieldErrors.displayName ? (
+            <span className="field-error">{fieldErrors.displayName}</span>
+          ) : null}
         </label>
         <label>
           Email
@@ -51,6 +58,9 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+          {fieldErrors.email ? (
+            <span className="field-error">{fieldErrors.email}</span>
+          ) : null}
         </label>
         <label>
           Password
@@ -62,6 +72,9 @@ export default function RegisterPage() {
             minLength={8}
             required
           />
+          {fieldErrors.password ? (
+            <span className="field-error">{fieldErrors.password}</span>
+          ) : null}
         </label>
         {error ? <p className="auth-error">{error}</p> : null}
         <button type="submit" disabled={submitting}>

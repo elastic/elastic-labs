@@ -1,24 +1,28 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authClient } from "../api/authClient";
+import { authClient, persistSession } from "../api/authClient";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     setSubmitting(true);
     const result = await authClient.login({ email, password });
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error.message);
+      setFieldErrors(result.error.fieldErrors ?? {});
       return;
     }
+    persistSession(result.data);
     navigate("/dashboard");
   }
 
@@ -36,6 +40,9 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+          {fieldErrors.email ? (
+            <span className="field-error">{fieldErrors.email}</span>
+          ) : null}
         </label>
         <label>
           Password
@@ -46,6 +53,9 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          {fieldErrors.password ? (
+            <span className="field-error">{fieldErrors.password}</span>
+          ) : null}
         </label>
         {error ? <p className="auth-error">{error}</p> : null}
         <button type="submit" disabled={submitting}>
