@@ -31,19 +31,27 @@ body {
   text-decoration: none;
 }
 
-.shell-nav {
+.shell-toolbar-actions {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.shell-nav a {
-  color: #cbd5e1;
-  text-decoration: none;
-  font-size: 0.95rem;
+.shell-logout {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #64748b;
+  background: transparent;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
-.shell-nav a:hover {
-  color: #fff;
+.shell-logout:hover {
+  background: rgb(248 250 252 / 10%);
+  border-color: #94a3b8;
 }
 
 .shell-main {

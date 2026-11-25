@@ -70,4 +70,5 @@ export const authClient = {
 export function persistSession(session: AuthSession): void {
   sessionStorage.setItem("mfe.accessToken", session.accessToken);
   sessionStorage.setItem("mfe.user", JSON.stringify(session.user));
+  window.dispatchEvent(new Event("mfe-session-change"));
 }
