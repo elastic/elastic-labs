@@ -2,10 +2,20 @@ import { randomUUID } from "node:crypto";
 import type { StoredUser } from "../types";
 
 const usersByEmail = new Map<string, StoredUser>();
+const usersById = new Map<string, StoredUser>();
+
+function indexUser(user: StoredUser) {
+  usersByEmail.set(user.email.toLowerCase(), user);
+  usersById.set(user.id, user);
+}
 
 export const userStore = {
   findByEmail(email: string): StoredUser | undefined {
     return usersByEmail.get(email.toLowerCase());
+  },
+
+  findById(id: string): StoredUser | undefined {
+    return usersById.get(id);
   },
 
   create(input: {
@@ -23,7 +33,7 @@ export const userStore = {
       displayName: input.displayName,
       passwordHash: input.passwordHash,
     };
-    usersByEmail.set(email, user);
+    indexUser(user);
     return user;
   },
 };

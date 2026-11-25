@@ -83,3 +83,33 @@ export function validateRegister(body: unknown):
     value: { email: email.toLowerCase(), password, displayName },
   };
 }
+
+const COMMENT_MAX_LENGTH = 2000;
+
+export interface CreateCommentFields {
+  body: string;
+}
+
+export function validateCreateComment(body: unknown):
+  | { ok: true; value: CreateCommentFields }
+  | { ok: false; fieldErrors: Record<string, string> } {
+  const fieldErrors: Record<string, string> = {};
+  if (!body || typeof body !== "object") {
+    return { ok: false, fieldErrors: { _form: "Request body must be a JSON object." } };
+  }
+  const record = body as Record<string, unknown>;
+
+  const rawBody = typeof record.body === "string" ? record.body.trim() : "";
+
+  if (!rawBody) {
+    fieldErrors.body = "Comment cannot be empty.";
+  } else if (rawBody.length > COMMENT_MAX_LENGTH) {
+    fieldErrors.body = `Comment must be at most ${COMMENT_MAX_LENGTH} characters.`;
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return { ok: false, fieldErrors };
+  }
+
+  return { ok: true, value: { body: rawBody } };
+}

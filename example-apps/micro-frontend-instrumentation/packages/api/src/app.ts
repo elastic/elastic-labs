@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { createAuthRouter } from "./routes/auth";
+import { createPhotosRouter } from "./routes/photos";
 
 function parseCorsOrigins(value: string | undefined): string[] | true {
   if (!value || value === "*") {
@@ -27,6 +28,7 @@ export function createApp(options: {
   });
 
   app.use("/auth", createAuthRouter(options.jwtSecret));
+  app.use("/photos", createPhotosRouter(options.jwtSecret));
 
   return app;
 }

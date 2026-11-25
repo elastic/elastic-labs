@@ -8,7 +8,7 @@ React + TypeScript monorepo with a **shell host** and two independently deployab
 | `@mfe/auth` | Login & registration (`/auth/*`) | 3001 | `auth/App` → `remoteEntry.js` |
 | `@mfe/dashboard` | Placeholder dashboard (`/dashboard/*`) | 3002 | `dashboard/App` → `remoteEntry.js` |
 | `@mfe/contracts` | Shared auth API types (no UI) | — | npm workspace only |
-| `@mfe/api` | Auth REST API (`POST /auth/login`, `POST /auth/register`) | 4000 | — |
+| `@mfe/api` | REST API (auth + photos/comments) | 4000 | — |
 
 Webpack 5 **Module Federation** (`webpack.container.ModuleFederationPlugin`). You can swap in [`@module-federation/enhanced`](https://module-federation.io/) later for runtime plugins and manifests (Node 20+ recommended). `react`, `react-dom`, and `react-router-dom` are shared singletons so the shell and remotes share one router instance.
 
@@ -27,15 +27,29 @@ Open [http://localhost:3000](http://localhost:3000). `npm run dev` runs the shel
 
 Each remote also runs standalone on its own port (useful for team-local development).
 
-## Auth API
+## API (`@mfe/api`)
 
-Express + TypeScript service in `packages/api`. Users are kept **in memory** (data is lost on restart). Passwords are hashed with bcrypt; successful auth returns a **JWT** matching `AuthSession` in `@mfe/contracts`.
+Express + TypeScript service in `packages/api`. Users, photos, and comments are kept **in memory** (data is lost on restart). Sample photos are seeded on first read. Passwords are hashed with bcrypt; successful auth returns a **JWT** matching `AuthSession` in `@mfe/contracts`.
+
+### Auth
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/auth/register` | Create account (validates email, password ≥ 8 chars, display name 2–64 chars) |
 | `POST` | `/auth/login` | Sign in with email + password |
 | `GET` | `/health` | Liveness check |
+
+### Photos & comments
+
+All photo/comment **reads are public**. **Creating comments** requires `Authorization: Bearer <accessToken>` from login/register.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/photos` | Paginated gallery (`page`, `pageSize`; default 1 / 20; newest first) |
+| `GET` | `/photos/:photoId` | Photo detail + paginated comments (`commentPage`, `commentPageSize`; default 1 / 50; oldest first) |
+| `POST` | `/photos/:photoId/comments` | Add comment (`body`; max 2000 chars after trim) |
+
+DTO shapes live in `@mfe/contracts` (`PhotoSummary`, `PhotoDetail`, `Comment`, `Paginated`, `CreateCommentRequest`).
 
 Error responses use `{ code, message, fieldErrors? }` (aligned with `AuthApiError`).
 
@@ -44,6 +58,17 @@ npm run dev -w @mfe/api          # alone on port 4000
 curl -s -X POST localhost:4000/auth/register \
   -H 'content-type: application/json' \
   -d '{"email":"you@example.com","password":"password1","displayName":"You"}'
+
+curl -s localhost:4000/photos | jq .
+PHOTO_ID=$(curl -s localhost:4000/photos | jq -r '.items[0].id')
+curl -s "localhost:4000/photos/$PHOTO_ID" | jq .
+TOKEN=$(curl -s -X POST localhost:4000/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"password1"}' | jq -r '.accessToken')
+curl -s -X POST "localhost:4000/photos/$PHOTO_ID/comments" \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"body":"Nice photo."}' | jq .
 ```
 
 The auth MFE calls the API via `authClient` (`AUTH_API_URL`, default `http://localhost:4000`). Set at build time for Docker:
