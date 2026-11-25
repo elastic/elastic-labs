@@ -3,21 +3,26 @@ import { Link } from "react-router-dom";
 
 export default function HomePage() {
   return (
-    <section className="home">
-      <h1>Module Federation shell</h1>
-      <p>
-        This host loads <strong>auth</strong> and <strong>dashboard</strong> as
-        independently deployed remotes. Each remote owns its own routes under{" "}
-        <code>/auth/*</code> and <code>/dashboard/*</code>.
-      </p>
-      <ul className="home-links">
-        <li>
-          <Link to="/auth/login">Go to login (auth remote)</Link>
-        </li>
-        <li>
-          <Link to="/dashboard">Go to dashboard (dashboard remote)</Link>
-        </li>
-      </ul>
+    <section className="landing">
+      <div className="landing-banner">
+        <p className="landing-eyebrow">Community photo gallery</p>
+        <h1 className="landing-title">
+          Browse photos, read the conversation, join in when you&apos;re ready.
+        </h1>
+        <p className="landing-message">
+          Discover what others have shared, open any shot for full detail and
+          comments, then sign in to add your voice. Everything runs as
+          independent microfrontends behind this shell.
+        </p>
+        <div className="landing-actions">
+          <Link to="/dashboard" className="landing-btn landing-btn-primary">
+            Explore
+          </Link>
+          <Link to="/auth/login" className="landing-btn landing-btn-secondary">
+            Sign in
+          </Link>
+        </div>
+      </div>
     </section>
   );
 }

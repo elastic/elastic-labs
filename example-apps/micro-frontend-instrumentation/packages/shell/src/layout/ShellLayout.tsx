@@ -6,12 +6,12 @@ export default function ShellLayout() {
     <div className="shell">
       <header className="shell-header">
         <div className="shell-brand">
-          <Link to="/">MFE Shell</Link>
+          <Link to="/">Photo gallery</Link>
         </div>
-        <nav className="shell-nav">
+        <nav className="shell-nav" aria-label="Main">
+          <Link to="/dashboard">Explore</Link>
           <Link to="/auth/login">Sign in</Link>
           <Link to="/auth/register">Register</Link>
-          <Link to="/dashboard">Dashboard</Link>
         </nav>
       </header>
       <main className="shell-main">
