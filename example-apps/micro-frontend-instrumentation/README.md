@@ -82,6 +82,7 @@ AUTH_API_URL=http://localhost:4000 npm run build -w @mfe/auth
 | `JWT_SECRET` | API | Signing key (required in production) |
 | `CORS_ORIGINS` | API | Comma-separated browser origins (default: allow all in dev) |
 | `AUTH_API_URL` | auth MFE build | Browser-visible API base URL |
+| `API_URL` | dashboard MFE build | Browser-visible API base URL (falls back to `AUTH_API_URL` or `http://localhost:4000`) |
 
 ## Independent deploy
 
@@ -90,7 +91,7 @@ Each app builds to its own `dist/` and is served separately (Dockerfiles include
 ### Build one app
 
 ```bash
-npm run build -w @mfe/contracts   # required before auth
+npm run build -w @mfe/contracts   # required before auth and dashboard
 npm run build -w @mfe/auth
 npm run build -w @mfe/dashboard
 npm run build -w @mfe/shell

@@ -7,6 +7,7 @@
     "build": "webpack --mode production"
   },
   "dependencies": {
+    "@mfe/contracts": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0"
