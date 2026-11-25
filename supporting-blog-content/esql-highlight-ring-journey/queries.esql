@@ -1,0 +1,176 @@
+// ES|QL queries from the Elastic Labs post on ES|QL HIGHLIGHT, in reading order.
+// Load the data first (see README.md). Paste any query into Kibana Discover,
+// wrap it in POST /_query in the Dev Tools Console, or run them with:
+// python3 run_queries.py [name ...]
+// Each query starts with a `// name:` line.
+
+// --- Bag End: your first HIGHLIGHT -------------------------------------------
+
+// name: bag_end_first
+FROM fellowship_log
+| WHERE stop == "shire" AND MATCH(text, "ring")
+| HIGHLIGHT
+| KEEP ta_date, highlight_text
+| SORT ta_date
+
+// name: bag_end_fire
+FROM fellowship_log METADATA _score
+| WHERE MATCH(text, "one ring fire letters")
+| SORT _score DESC
+| LIMIT 3
+| HIGHLIGHT WITH { "pre_tags": "<fire>", "post_tags": "</fire>" }
+| KEEP stop, _score, highlight_text
+
+// --- Bree: multivalued fields -----------------------------------------------
+
+// name: bree_multivalued
+FROM fellowship_log
+| WHERE MATCH(who, "strider aragorn")
+| HIGHLIGHT
+| KEEP stop, who, highlight_who
+| SORT stop
+
+// name: bree_phrase_highlight
+FROM fellowship_log
+| WHERE stop == "bree"
+| HIGHLIGHT MATCH_PHRASE(who, "strider aragorn") ON who
+| KEEP who, highlight_who
+
+// name: bree_phrase_search
+FROM fellowship_log
+| WHERE MATCH_PHRASE(who, "strider aragorn")
+| KEEP who
+
+// name: bree_mr_default
+FROM fellowship_log
+| WHERE stop == "bree"
+| HIGHLIGHT "strider underhill" ON who, text
+| KEEP highlight_who, highlight_text
+
+// name: bree_mr_whole
+FROM fellowship_log
+| WHERE stop == "bree"
+| HIGHLIGHT "strider underhill" ON who, text WITH { "number_of_fragments": 0 }
+| KEEP highlight_who, highlight_text
+
+// --- Weathertop: wildcards ---------------------------------------------------
+
+// name: weathertop_kql
+FROM fellowship_log
+| WHERE KQL("text: nazg*")
+| HIGHLIGHT ON text
+| KEEP stop, highlight_text
+| SORT stop
+
+// --- Rivendell: two archives, two analyzers ---------------------------------
+
+// name: rivendell_two_archives
+FROM fellowship_log, red_book METADATA _index
+| WHERE stop == "rivendell" AND MATCH(text, "ring")
+| HIGHLIGHT WITH { "number_of_fragments": 0 }
+| KEEP _index, highlight_text
+| SORT _index
+
+// --- Moria: the Book of Mazarbul as a log -----------------------------------
+
+// name: moria_dissect_standard
+FROM book_of_mazarbul
+| DISSECT entry "%{date} | %{scribe} | %{note}"
+| HIGHLIGHT "orc" ON note
+| KEEP date, highlight_note
+| SORT date
+
+// name: moria_to_text_english
+FROM book_of_mazarbul
+| DISSECT entry "%{date} | %{scribe} | %{note}"
+| EVAL note = TO_TEXT(note, {"analyzer": "english"})
+| WHERE MATCH(note, "orc")
+| HIGHLIGHT
+| KEEP date, highlight_note
+| SORT date
+
+// --- Lothlórien: nobody types diacritics ------------------------------------
+
+// name: lothlorien_exact
+FROM fellowship_log
+| WHERE MATCH(text, "Lothlorien")
+| KEEP stop
+
+// name: lothlorien_fuzzy
+FROM fellowship_log
+| WHERE MATCH(text, "Lothlorien", {"fuzziness": "AUTO"})
+| HIGHLIGHT
+| KEEP stop, highlight_text
+| SORT stop
+
+// name: lothlorien_barad_dur
+FROM fellowship_log
+| WHERE MATCH(text, "Barad-dur", {"fuzziness": "AUTO"})
+| HIGHLIGHT
+| KEEP stop, highlight_text
+| SORT stop
+
+// name: lothlorien_barad_dur_and
+FROM fellowship_log
+| WHERE MATCH(text, "Barad-dur", {"fuzziness": "AUTO", "operator": "AND"})
+| HIGHLIGHT
+| KEEP stop, highlight_text
+| SORT stop
+
+// --- Amon Hen: when stemming backfires --------------------------------------
+
+// name: amon_hen_ringing
+FROM fellowship_log
+| WHERE stop == "amon_hen" AND MATCH(text, "ring")
+| HIGHLIGHT
+| KEEP highlight_text
+
+// name: amon_hen_exact
+FROM fellowship_log
+| WHERE stop == "amon_hen" AND MATCH(text.exact, "ring")
+| HIGHLIGHT
+| KEEP highlight_text.exact
+
+// name: amon_hen_count_english
+FROM fellowship_log
+| WHERE MATCH(text, "ring")
+| STATS english_matches = COUNT(*)
+
+// name: amon_hen_count_standard
+FROM fellowship_log
+| WHERE MATCH(text.exact, "ring")
+| STATS standard_matches = COUNT(*)
+
+// --- Mordor: under the hood (profile_mordor.py times these) -----------------
+
+// name: mordor_match_count
+FROM eye_watch
+| WHERE MATCH(report, "ring bearer")
+| STATS matches = COUNT(*)
+
+// name: mordor_top3
+FROM eye_watch METADATA _score
+| WHERE MATCH(report, "ring bearer")
+| HIGHLIGHT
+| SORT _score DESC
+| LIMIT 3
+| KEEP watcher, place, _score, highlight_report
+
+// name: mordor_mv_first_gotcha
+FROM eye_watch METADATA _score
+| WHERE MATCH(report, "ring bearer")
+| HIGHLIGHT
+| EVAL snippet = MV_FIRST(highlight_report)
+| SORT _score DESC
+| LIMIT 3
+| KEEP watcher, place, _score, snippet
+
+// --- Mount Doom: the results page -------------------------------------------
+
+// name: mount_doom_results_page
+FROM fellowship_log METADATA _score
+| WHERE MATCH(text, "frodo ring fire")
+| SORT _score DESC
+| LIMIT 5
+| HIGHLIGHT ON text WITH { "number_of_fragments": 1, "fragment_size": 60, "encoder": "html", "pre_tags": "<mark>", "post_tags": "</mark>" }
+| KEEP stop, ta_date, _score, highlight_text

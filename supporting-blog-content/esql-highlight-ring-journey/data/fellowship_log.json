@@ -1,0 +1,67 @@
+[
+  {"_id": "shire-1", "stop": "shire", "ta_date": "3018-04-13", "who": ["Gandalf", "Frodo Baggins"],
+   "text": "At Bag End, Gandalf threw Bilbo's old ring into the fire. When Frodo picked it out, fine letters of fire showed on the band, and Gandalf named it the One Ring."},
+  {"_id": "shire-2", "stop": "shire", "ta_date": "3001-09-22", "who": ["Bilbo Baggins", "Gandalf"],
+   "text": "After his farewell party, Bilbo vanished from the Shire. He argued with Gandalf before he agreed to leave the ring behind for Frodo."},
+  {"_id": "shire-3", "stop": "shire", "ta_date": "3018-09-23", "who": ["Frodo Baggins", "Samwise Gamgee", "Peregrin Took"],
+   "text": "Frodo, Sam and Pippin set out from Bag End on foot, carrying the Ring east toward Buckland."},
+  {"_id": "shire-4", "stop": "shire", "ta_date": "3018-09-24", "who": ["Frodo Baggins", "Samwise Gamgee"],
+   "text": "A Black Rider, one of the Nazgûl, stopped on the road and sniffed the air while the hobbits hid among the roots of a tree."},
+
+  {"_id": "bree-1", "stop": "bree", "ta_date": "3018-09-29", "who": ["Frodo Baggins", "Mr. Underhill"],
+   "text": "At the Prancing Pony, Frodo gave his name as Mr. Underhill. During a song on a table, the Ring slipped onto his finger and he vanished in front of the common room."},
+  {"_id": "bree-2", "stop": "bree", "ta_date": "3018-09-29", "who": ["Strider", "Aragorn son of Arathorn"],
+   "text": "A Ranger called Strider offered to guide the hobbits to Rivendell. A late letter from Gandalf told them they could trust him."},
+  {"_id": "bree-3", "stop": "bree", "ta_date": "3018-09-30", "who": ["Barliman Butterbur"],
+   "text": "Before dawn, the beds in the hobbits' room at the inn were slashed. Their ponies had been driven off in the night."},
+
+  {"_id": "weathertop-1", "stop": "weathertop", "ta_date": "3018-10-06", "who": ["Frodo Baggins", "Strider"],
+   "text": "On Weathertop, five of the Nazgûl came to the camp at night. Frodo put on the Ring and the Witch-king stabbed him with a Morgul-blade."},
+  {"_id": "weathertop-2", "stop": "weathertop", "ta_date": "3018-10-05", "who": ["Strider", "Gandalf"],
+   "text": "Strider found a stone on Weathertop marked with the rune G and three strokes, a sign that Gandalf had been there."},
+
+  {"_id": "rivendell-1", "stop": "rivendell", "ta_date": "3018-10-20", "who": ["Frodo Baggins", "Glorfindel"],
+   "text": "At the Ford of Bruinen, the river rose in a flood shaped like white horses and swept the Ringwraiths away."},
+  {"_id": "rivendell-2", "stop": "rivendell", "ta_date": "3018-10-25", "who": ["Elrond", "Gandalf", "Boromir"],
+   "text": "At the Council of Elrond, Gandalf told how Sauron forged the One Ring in secret after the Elven-smiths of Eregion had made the other Rings of Power."},
+  {"_id": "rivendell-3", "stop": "rivendell", "ta_date": "3018-10-25", "who": ["Frodo Baggins", "Elrond"],
+   "text": "The Council agreed that the Ring could not be hidden or used, only destroyed in the fire where it was made. Frodo said he would take it."},
+  {"_id": "rivendell-4", "stop": "rivendell", "ta_date": "3018-12-25", "who": ["Frodo Baggins", "Bilbo Baggins"],
+   "text": "Before the Company left Rivendell, Bilbo gave Frodo his sword Sting and a coat of mithril."},
+
+  {"_id": "moria-1", "stop": "moria", "ta_date": "3019-01-13", "who": ["Gandalf", "Frodo Baggins"],
+   "text": "At the West-gate of Moria, the Watcher in the Water seized Frodo by the ankle before the Company fled inside."},
+  {"_id": "moria-2", "stop": "moria", "ta_date": "3019-01-15", "who": ["Gimli", "Gandalf"],
+   "text": "In the Chamber of Mazarbul the Company found Balin's tomb and a torn book of records kept by his dwarves."},
+  {"_id": "moria-3", "stop": "moria", "ta_date": "3019-01-15", "who": ["Gandalf"],
+   "text": "On the Bridge of Khazad-dûm, Gandalf stood against the Balrog and fell with it into the dark."},
+
+  {"_id": "lothlorien-1", "stop": "lothlorien", "ta_date": "3019-01-17", "who": ["Haldir", "Legolas", "Gimli"],
+   "text": "Elves of Lothlórien led the Company blindfolded to Caras Galadhon. Gimli agreed only once everyone else was blindfolded too."},
+  {"_id": "lothlorien-2", "stop": "lothlorien", "ta_date": "3019-02-14", "who": ["Galadriel", "Frodo Baggins", "Samwise Gamgee"],
+   "text": "In Lothlórien, Galadriel let Frodo look into her mirror, and he saw the Eye searching for him. She refused the Ring when he offered it to her."},
+  {"_id": "lothlorien-3", "stop": "lothlorien", "ta_date": "3019-02-16", "who": ["Galadriel", "Frodo Baggins"],
+   "text": "Before the Company left Lothlórien, Galadriel gave Frodo a phial holding the light of Eärendil's star."},
+
+  {"_id": "amon_hen-1", "stop": "amon_hen", "ta_date": "3019-02-26", "who": ["Boromir", "Frodo Baggins"],
+   "text": "On the slopes of Amon Hen, Boromir tried to take the Ring from Frodo, who put it on and ran."},
+  {"_id": "amon_hen-2", "stop": "amon_hen", "ta_date": "3019-02-26", "who": ["Boromir", "Merry Brandybuck", "Peregrin Took"],
+   "text": "Boromir's horn was ringing in the woods below Amon Hen as orcs fell on Merry and Pippin."},
+  {"_id": "amon_hen-3", "stop": "amon_hen", "ta_date": "3019-02-26", "who": ["Frodo Baggins", "Samwise Gamgee"],
+   "text": "Frodo took a boat to cross the river alone, but Sam waded in after him and nearly drowned."},
+
+  {"_id": "mordor-1", "stop": "mordor", "ta_date": "3019-03-14", "who": ["Samwise Gamgee", "Frodo Baggins"],
+   "text": "In the tower of Cirith Ungol, Sam rescued Frodo and gave back the Ring he had been carrying."},
+  {"_id": "mordor-2", "stop": "mordor", "ta_date": "3019-03-18", "who": ["Frodo Baggins", "Samwise Gamgee"],
+   "text": "The hobbits were caught up in a column of orcs on the road and marched north until they slipped away at a crossroads."},
+  {"_id": "mordor-3", "stop": "mordor", "ta_date": "3019-03-24", "who": ["Samwise Gamgee", "Frodo Baggins"],
+   "text": "On the slopes of Mount Doom, Sam carried Frodo when he could no longer walk under the weight of the Ring."},
+
+  {"_id": "mount_doom-1", "stop": "mount_doom", "ta_date": "3019-03-25", "who": ["Frodo Baggins", "Gollum", "Sméagol"],
+   "text": "In the Sammath Naur, Frodo claimed the Ring for himself. Gollum bit it from his finger and fell with it into the fire."},
+  {"_id": "mount_doom-2", "stop": "mount_doom", "ta_date": "3019-03-25", "who": ["Gwaihir", "Gandalf"],
+   "text": "As the Ring was destroyed, Barad-dûr fell and the Nazgûl burned in the air. The eagles carried the hobbits out of the fire."},
+
+  {"_id": "grey_havens-1", "stop": "grey_havens", "ta_date": "3021-09-29", "who": ["Frodo Baggins", "Bilbo Baggins", "Gandalf"],
+   "text": "Frodo sailed from the Grey Havens with Bilbo, Gandalf, Elrond and Galadriel. Sam watched the ship until it was gone."}
+]

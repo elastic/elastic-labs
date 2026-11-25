@@ -1,0 +1,32 @@
+# The two _search comparisons from the post, for Kibana Dev Tools (Console).
+# Load the data first (see README.md), then paste and run each request.
+# Compare the "highlight" sections with the matching ES|QL query in queries.esql.
+
+# Bag End: the same snippets as `bag_end_first`.
+GET fellowship_log/_search
+{
+  "query": {
+    "bool": {
+      "must": { "match": { "text": "ring" } },
+      "filter": { "term": { "stop": "shire" } }
+    }
+  },
+  "highlight": { "fields": { "text": {} } },
+  "_source": ["ta_date"],
+  "sort": [{ "ta_date": "asc" }]
+}
+
+# Bree: the sentence boundary scanner reads "Mr." as a sentence end here too,
+# so Frodo's record is cut to "<em>Underhill</em>." as in `bree_mr_default`.
+GET fellowship_log/_search
+{
+  "query": { "bool": { "filter": { "term": { "stop": "bree" } } } },
+  "highlight": {
+    "highlight_query": {
+      "query_string": { "query": "strider underhill", "fields": ["who", "text"] }
+    },
+    "fields": { "who": {}, "text": {} }
+  },
+  "_source": false,
+  "sort": [{ "_doc": "asc" }]
+}
