@@ -1,6 +1,7 @@
 import React from "react";
 import { Route, Routes } from "react-router-dom";
 import PhotoGalleryPage from "./pages/PhotoGalleryPage";
+import "./styles.css";
 
 /** Federated export — shell mounts this under `/dashboard/*`. */
 export default function App() {

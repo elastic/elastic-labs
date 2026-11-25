@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import "./styles.css";
 
 /** Federated export — shell mounts this under `/auth/*`. */
 export default function App() {

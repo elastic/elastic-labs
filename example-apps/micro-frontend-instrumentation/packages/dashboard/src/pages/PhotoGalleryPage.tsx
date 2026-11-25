@@ -108,42 +108,46 @@ export default function PhotoGalleryPage() {
       ) : null}
 
       {!initialLoading && photos.length > 0 ? (
-        <>
-          <ul className="photo-grid">
+        <div className="photo-gallery-body">
+          <ul className="photo-grid" aria-label="Photo gallery">
             {photos.map((photo) => (
               <li key={photo.id} className="photo-card">
-                <Link to={`/photo/${photo.id}`} className="photo-card-media">
-                  <img
-                    src={photo.thumbnailUrl}
-                    alt={photo.title}
-                    loading="lazy"
-                    width={400}
-                    height={267}
-                  />
+                <Link
+                  to={`/photo/${photo.id}`}
+                  className="photo-card-link"
+                  aria-label={`View ${photo.title}`}
+                >
+                  <div className="photo-card-media">
+                    <img
+                      src={photo.thumbnailUrl}
+                      alt=""
+                      loading="lazy"
+                      width={400}
+                      height={400}
+                    />
+                  </div>
+                  <div className="photo-card-body">
+                    <h2 className="photo-card-title">{photo.title}</h2>
+                    <p className="photo-card-meta">
+                      <span>{photo.uploader.displayName}</span>
+                      <span aria-hidden="true"> · </span>
+                      <time dateTime={photo.uploadedAt}>
+                        {formatUploadedAt(photo.uploadedAt)}
+                      </time>
+                    </p>
+                    <p className="photo-card-comments">
+                      {photo.commentCount === 1
+                        ? "1 comment"
+                        : `${photo.commentCount} comments`}
+                    </p>
+                  </div>
                 </Link>
-                <div className="photo-card-body">
-                  <h2 className="photo-card-title">
-                    <Link to={`/photo/${photo.id}`}>{photo.title}</Link>
-                  </h2>
-                  <p className="photo-card-meta">
-                    <span>{photo.uploader.displayName}</span>
-                    <span aria-hidden="true"> · </span>
-                    <time dateTime={photo.uploadedAt}>
-                      {formatUploadedAt(photo.uploadedAt)}
-                    </time>
-                  </p>
-                  <p className="photo-card-comments">
-                    {photo.commentCount === 1
-                      ? "1 comment"
-                      : `${photo.commentCount} comments`}
-                  </p>
-                </div>
               </li>
             ))}
           </ul>
 
           {hasMore ? (
-            <div className="photo-gallery-more">
+            <footer className="photo-gallery-footer">
               <button
                 type="button"
                 className="photo-gallery-more-btn"
@@ -152,9 +156,9 @@ export default function PhotoGalleryPage() {
               >
                 {loadingMore ? "Loading…" : "Load more"}
               </button>
-            </div>
+            </footer>
           ) : null}
-        </>
+        </div>
       ) : null}
     </section>
   );
