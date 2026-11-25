@@ -38,6 +38,7 @@ Watch, fork, or star [the Elastic Labs repo on GitHub](https://github.com/elasti
 - [Chatbot RAG App](./example-apps/chatbot-rag-app/)
 - [Internal Knowledge Search](./example-apps/internal-knowledge-search)
 - [Relevance Workbench](./example-apps/relevance-workbench)
+- [Micro Frontend Instrumentation](./example-apps/micro-frontend-instrumentation)
 
 # Python notebooks 📒
 
