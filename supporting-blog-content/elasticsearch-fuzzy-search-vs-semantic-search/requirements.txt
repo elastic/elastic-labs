@@ -1,0 +1,7 @@
+elasticsearch>=9.4,<10
+python-dotenv>=1.0
+requests>=2.32
+pandas>=2.2
+pyarrow>=16
+matplotlib>=3.8
+Metaphone==0.6
