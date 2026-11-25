@@ -12,6 +12,8 @@ const authRemote =
 const dashboardRemote =
   process.env.DASHBOARD_REMOTE_URL ||
   `http://localhost:3002/remoteEntry.js`;
+const photoRemote =
+  process.env.PHOTO_REMOTE_URL || `http://localhost:3003/remoteEntry.js`;
 
 module.exports = {
   entry: "./src/index.tsx",
@@ -40,6 +42,7 @@ module.exports = {
       remotes: {
         auth: `auth@${authRemote}`,
         dashboard: `dashboard@${dashboardRemote}`,
+        photo: `photo@${photoRemote}`,
       },
       shared: sharedDependencies,
     }),

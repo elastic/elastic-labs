@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { PhotoSummary } from "@mfe/contracts";
 import { fetchPhotoPage } from "../api/photosClient";
 
@@ -80,8 +81,8 @@ export default function PhotoGalleryPage() {
       <header className="photo-gallery-header">
         <h1>Photos</h1>
         <p className="photo-gallery-lead">
-          Community uploads — newest first. Sign in from the shell to comment on
-          a photo (detail view coming next).
+          Community uploads — newest first. Select a photo to view details and
+          comments.
         </p>
       </header>
 
@@ -111,12 +112,7 @@ export default function PhotoGalleryPage() {
           <ul className="photo-grid">
             {photos.map((photo) => (
               <li key={photo.id} className="photo-card">
-                <a
-                  href={photo.imageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="photo-card-media"
-                >
+                <Link to={`/photo/${photo.id}`} className="photo-card-media">
                   <img
                     src={photo.thumbnailUrl}
                     alt={photo.title}
@@ -124,9 +120,11 @@ export default function PhotoGalleryPage() {
                     width={400}
                     height={267}
                   />
-                </a>
+                </Link>
                 <div className="photo-card-body">
-                  <h2 className="photo-card-title">{photo.title}</h2>
+                  <h2 className="photo-card-title">
+                    <Link to={`/photo/${photo.id}`}>{photo.title}</Link>
+                  </h2>
                   <p className="photo-card-meta">
                     <span>{photo.uploader.displayName}</span>
                     <span aria-hidden="true"> · </span>

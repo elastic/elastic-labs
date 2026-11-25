@@ -10,10 +10,12 @@ RUN npm install
 ARG PUBLIC_PATH=http://localhost:3000/
 ARG AUTH_REMOTE_URL=http://localhost:3001/remoteEntry.js
 ARG DASHBOARD_REMOTE_URL=http://localhost:3002/remoteEntry.js
+ARG PHOTO_REMOTE_URL=http://localhost:3003/remoteEntry.js
 
 ENV PUBLIC_PATH=$PUBLIC_PATH
 ENV AUTH_REMOTE_URL=$AUTH_REMOTE_URL
 ENV DASHBOARD_REMOTE_URL=$DASHBOARD_REMOTE_URL
+ENV PHOTO_REMOTE_URL=$PHOTO_REMOTE_URL
 
 RUN npm run build -w @mfe/shell
 

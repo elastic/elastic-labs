@@ -1,12 +1,13 @@
 # Micro-frontends (Module Federation)
 
-React + TypeScript monorepo with a **shell host** and two independently deployable **remotes**:
+React + TypeScript monorepo with a **shell host** and independently deployable **remotes**:
 
 | Package | Role | Dev port | Exposes |
 |--------|------|----------|---------|
 | `@mfe/shell` | Host — loads remotes at runtime | 3000 | — |
 | `@mfe/auth` | Login & registration (`/auth/*`) | 3001 | `auth/App` → `remoteEntry.js` |
-| `@mfe/dashboard` | Placeholder dashboard (`/dashboard/*`) | 3002 | `dashboard/App` → `remoteEntry.js` |
+| `@mfe/dashboard` | Photo gallery (`/dashboard/*`) | 3002 | `dashboard/App` → `remoteEntry.js` |
+| `@mfe/photo` | Photo detail + comments (`/photo/:photoId`) | 3003 | `photo/App` → `remoteEntry.js` |
 | `@mfe/contracts` | Shared auth API types (no UI) | — | npm workspace only |
 | `@mfe/api` | REST API (auth + photos/comments) | 4000 | — |
 
@@ -19,11 +20,12 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). `npm run dev` runs the shell, both remotes, and the API (ports 3000–3002 and 4000).
+Open [http://localhost:3000](http://localhost:3000). `npm run dev` runs the shell, remotes, and the API (ports 3000–3003 and 4000).
 
 - Shell home: `/`
 - Auth (remote routes): `/auth/login`, `/auth/register`
 - Dashboard (remote): `/dashboard`
+- Photo (remote): `/photo/:photoId` (open from a gallery card)
 
 Each remote also runs standalone on its own port (useful for team-local development).
 
@@ -82,7 +84,7 @@ AUTH_API_URL=http://localhost:4000 npm run build -w @mfe/auth
 | `JWT_SECRET` | API | Signing key (required in production) |
 | `CORS_ORIGINS` | API | Comma-separated browser origins (default: allow all in dev) |
 | `AUTH_API_URL` | auth MFE build | Browser-visible API base URL |
-| `API_URL` | dashboard MFE build | Browser-visible API base URL (falls back to `AUTH_API_URL` or `http://localhost:4000`) |
+| `API_URL` | dashboard / photo MFE build | Browser-visible API base URL (falls back to `AUTH_API_URL` or `http://localhost:4000`) |
 
 ## Independent deploy
 
@@ -91,9 +93,10 @@ Each app builds to its own `dist/` and is served separately (Dockerfiles include
 ### Build one app
 
 ```bash
-npm run build -w @mfe/contracts   # required before auth and dashboard
+npm run build -w @mfe/contracts   # required before auth, dashboard, and photo
 npm run build -w @mfe/auth
 npm run build -w @mfe/dashboard
+npm run build -w @mfe/photo
 npm run build -w @mfe/shell
 ```
 
@@ -104,6 +107,7 @@ npm run build -w @mfe/shell
 | `PUBLIC_PATH` | all webpack builds | Absolute URL prefix for assets (`remoteEntry.js` chunks) |
 | `AUTH_REMOTE_URL` | shell build | Full URL to auth `remoteEntry.js` |
 | `DASHBOARD_REMOTE_URL` | shell build | Full URL to dashboard `remoteEntry.js` |
+| `PHOTO_REMOTE_URL` | shell build | Full URL to photo `remoteEntry.js` |
 
 Remote URLs are **browser-reachable** origins (not internal Docker DNS), because the shell downloads `remoteEntry.js` from the user's browser.
 
@@ -112,6 +116,7 @@ Example: deploy auth at `https://auth.example.com`, dashboard at `https://dashbo
 ```bash
 AUTH_REMOTE_URL=https://auth.example.com/remoteEntry.js \
 DASHBOARD_REMOTE_URL=https://dashboard.example.com/remoteEntry.js \
+PHOTO_REMOTE_URL=https://photo.example.com/remoteEntry.js \
 PUBLIC_PATH=https://app.example.com/ \
 npm run build -w @mfe/shell
 ```
@@ -122,7 +127,7 @@ npm run build -w @mfe/shell
 docker compose up --build
 ```
 
-Ports: shell `3000`, auth `3001`, dashboard `3002`, api `4000`.
+Ports: shell `3000`, auth `3001`, dashboard `3002`, photo `3003`, api `4000`.
 
 ## Layout
 
@@ -131,6 +136,7 @@ packages/
   shell/          # host
   auth/           # remote
   dashboard/      # remote
+  photo/          # remote
   contracts/      # shared types
   api/            # auth REST API
   webpack-shared/ # shared MF devServer + shared deps config

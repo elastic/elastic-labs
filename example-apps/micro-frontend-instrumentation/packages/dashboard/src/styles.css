@@ -108,6 +108,15 @@
   line-height: 1.3;
 }
 
+.photo-card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.photo-card-title a:hover {
+  color: #15803d;
+}
+
 .photo-card-meta {
   margin: 0;
   font-size: 0.875rem;

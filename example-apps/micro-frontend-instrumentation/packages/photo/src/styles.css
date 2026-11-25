@@ -1,0 +1,162 @@
+.mfe-photo {
+  padding: 2rem 1rem 3rem;
+}
+
+.photo-detail {
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.photo-detail-nav {
+  margin-bottom: 1.5rem;
+}
+
+.photo-detail-nav a {
+  color: #15803d;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.photo-detail-nav a:hover {
+  text-decoration: underline;
+}
+
+.photo-detail-status {
+  color: #475569;
+}
+
+.photo-detail-error {
+  padding: 1rem 1.25rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+}
+
+.photo-detail-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+}
+
+.photo-detail-meta {
+  margin: 0 0 1.25rem;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.photo-detail-figure {
+  margin: 0 0 2rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.photo-detail-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.photo-detail-comments h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.photo-detail-comments-empty {
+  margin: 0 0 1.5rem;
+  color: #64748b;
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comment-item {
+  padding: 1rem 1.1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.comment-body {
+  margin: 0 0 0.5rem;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.comment-meta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.comment-form label {
+  font-weight: 600;
+}
+
+.comment-form textarea {
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  resize: vertical;
+  min-height: 5rem;
+}
+
+.comment-form button {
+  align-self: flex-start;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.55rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #16a34a;
+  color: #fff;
+  font-weight: 600;
+}
+
+.comment-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.comment-form-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.photo-detail-login-prompt {
+  margin: 1.5rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.photo-detail-login-prompt a {
+  color: #15803d;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.photo-detail-login-prompt a:hover {
+  text-decoration: underline;
+}

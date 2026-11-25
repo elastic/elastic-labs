@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage";
 
 const AuthApp = React.lazy(() => import("auth/App"));
 const DashboardApp = React.lazy(() => import("dashboard/App"));
+const PhotoApp = React.lazy(() => import("photo/App"));
 
 function RemoteFallback({ label }: { label: string }) {
   return (
@@ -32,6 +33,14 @@ export default function App() {
           element={
             <Suspense fallback={<RemoteFallback label="dashboard" />}>
               <DashboardApp />
+            </Suspense>
+          }
+        />
+        <Route
+          path="photo/:photoId"
+          element={
+            <Suspense fallback={<RemoteFallback label="photo" />}>
+              <PhotoApp />
             </Suspense>
           }
         />

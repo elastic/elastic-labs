@@ -3,6 +3,7 @@ WORKDIR /app
 
 COPY package.json ./
 COPY packages/webpack-shared ./packages/webpack-shared
+COPY packages/contracts ./packages/contracts
 COPY packages/dashboard ./packages/dashboard
 
 RUN npm install
@@ -10,6 +11,7 @@ RUN npm install
 ARG PUBLIC_PATH=http://localhost:3002/
 ENV PUBLIC_PATH=$PUBLIC_PATH
 
+RUN npm run build -w @mfe/contracts
 RUN npm run build -w @mfe/dashboard
 
 FROM nginx:1.27-alpine
