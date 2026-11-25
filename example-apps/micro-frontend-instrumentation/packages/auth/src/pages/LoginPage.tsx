@@ -1,9 +1,13 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { authClient, persistSession } from "../api/authClient";
+import { resolveAfterAuth } from "../returnTo";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const afterAuthPath = resolveAfterAuth(searchParams);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,7 @@ export default function LoginPage() {
       return;
     }
     persistSession(result.data);
-    navigate("/dashboard");
+    navigate(afterAuthPath, { replace: true });
   }
 
   return (
@@ -63,7 +67,10 @@ export default function LoginPage() {
         </button>
       </form>
       <p className="auth-footer">
-        No account? <Link to="../register">Create one</Link>
+        No account?{" "}
+        <Link to={{ pathname: "../register", search: location.search }}>
+          Create one
+        </Link>
       </p>
     </section>
   );

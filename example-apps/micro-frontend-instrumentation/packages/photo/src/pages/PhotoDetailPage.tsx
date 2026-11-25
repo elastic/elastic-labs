@@ -190,7 +190,13 @@ export default function PhotoDetailPage() {
               </form>
             ) : (
               <p className="photo-detail-login-prompt">
-                <Link to="/auth/login">Log in to comment</Link>
+                <Link
+                  to={`/auth/login?returnTo=${encodeURIComponent(
+                    `/photo/${photoId}`
+                  )}`}
+                >
+                  Log in to comment
+                </Link>
               </p>
             )}
           </section>

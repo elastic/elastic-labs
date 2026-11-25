@@ -1,9 +1,13 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { authClient, persistSession } from "../api/authClient";
+import { resolveAfterAuth } from "../returnTo";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const afterAuthPath = resolveAfterAuth(searchParams);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +32,7 @@ export default function RegisterPage() {
       return;
     }
     persistSession(result.data);
-    navigate("/dashboard");
+    navigate(afterAuthPath, { replace: true });
   }
 
   return (
@@ -82,7 +86,10 @@ export default function RegisterPage() {
         </button>
       </form>
       <p className="auth-footer">
-        Already registered? <Link to="../login">Sign in</Link>
+        Already registered?{" "}
+        <Link to={{ pathname: "../login", search: location.search }}>
+          Sign in
+        </Link>
       </p>
     </section>
   );
