@@ -8,6 +8,8 @@ services:
   collector:
     image: docker.elastic.co/elastic-agent/elastic-otel-collector:9.5.6
     hostname: shop-node-1
+    # the image runs as a non-root user, which cannot write to a new named volume (file_storage)
+    user: "0:0"
     # COLLECTOR_CONFIG=otel-no-recombine.yml reproduces the failure-store section (stack traces split into separate records)
     command: ["--config", "/etc/otel.yml"]
     environment:

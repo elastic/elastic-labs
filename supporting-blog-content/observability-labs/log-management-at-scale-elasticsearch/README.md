@@ -1,15 +1,15 @@
 # Log management at scale: companion lab
 
-Generates logs for a small online shop (four services), ships them with the EDOT Collector to the `logs.otel` wired stream in Elastic, routes and parses them with Streams, moves older indices to the frozen tier, and queries them with ES|QL.
+Generates logs for a small online shop (four services), ships them with Elastic Agent, configured as an OTel Collector, to the `logs.otel` wired stream in Elastic, routes and parses them with Streams, moves older indices to the frozen tier, and queries them with ES|QL.
 
-Tested on Elastic Cloud Hosted 9.5.6 with EDOT Collector 9.5.6, a hot tier and a frozen tier.
+Tested on Elastic Cloud Hosted 9.5.6 with Elastic Agent 9.5.6 (formerly the EDOT Collector), a hot tier and a frozen tier.
 
 ## Layout
 
 | Path | What it does |
 |---|---|
 | `generator/shoplogs.py` | Writes four log files (nginx access log, three plain-text app logs). `--storm-at` adds a retry storm to `billing`. No dependencies. |
-| `collector/otel.yml` | EDOT Collector: `file_log` receivers, `recombine` for multi-line errors, `transform` that targets `logs.otel`, `elasticsearch` exporter. |
+| `collector/otel.yml` | OTel Collector config for Elastic Agent: `file_log` receivers, `recombine` for multi-line errors, `transform` that targets `logs.otel`, `elasticsearch` exporter. |
 | `collector/otel-no-recombine.yml` | Same config without `recombine`, so stack-trace lines land in the failure store (the "before" state in the article). |
 | `docker-compose.yml` | Runs the generator and the collector, sharing a volume for the log files. `COLLECTOR_CONFIG` picks the collector config. |
 | `streams/setup_streams.py` | Adds grok parsing and field mappings to the four child streams. |
@@ -59,7 +59,7 @@ Run every command from this folder.
 
 6. After the run, create the lookup index (`queries/service-owners.sh`), compare storage (`storage/compare.sh`), set the lifecycle (`lifecycle/apply-ilm.sh`) and run the rest of `queries/`.
 
-   To see indices on frozen without waiting a week, run `BACKDATE_DAYS=8 ./lifecycle/apply-ilm.sh`. It sets `index.lifecycle.origination_date` on the rolled-over indices, so ILM treats them as 8 days old. ILM checks every 10 minutes by default; `indices.lifecycle.poll_interval: 1m` speeds up a lab (set it back afterwards).
+   To see indices on frozen without waiting a week, run `BACKDATE_DAYS=8 ./lifecycle/apply-ilm.sh`. It rolls each stream over and sets `index.lifecycle.origination_date` on the rolled-over indices, so ILM treats them as 8 days old. This step needs a frozen node in the deployment. ILM checks every 10 minutes by default; `indices.lifecycle.poll_interval: 1m` speeds up a lab (set it back afterwards).
 
 The generator is random and runs in real time, so your counts and sizes will differ from the article's. The shares stay close: health checks are about a quarter of all lines before the drop rule, and the storefront access log is about two thirds of the bytes.
 

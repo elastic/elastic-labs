@@ -28,4 +28,4 @@ import json,sys; p=json.load(sys.stdin)['_all']['primaries']
 print('cmp-$name', p['docs']['count'], 'docs', round(p['store']['size_in_bytes']/1048576,1), 'MiB')"
 done
 # Check the source mode: STORED means _source is kept as a second copy (no synthetic _source).
-curl -s -H "$H" "$ES_URL/cmp-standard-default,cmp-standard,cmp-logsdb/_settings?filter_path=*.settings.index.mode,*.settings.index.mapping.source*&flat_settings=true"
+curl -s -H "$H" "$ES_URL/cmp-standard-default,cmp-standard,cmp-logsdb/_settings?filter_path=*.settings.index.mode,*.settings.index.mapping.source"

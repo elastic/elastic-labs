@@ -4,6 +4,7 @@
 # usage (from the lab folder): set -a; . ./.env; set +a; ./lifecycle/apply-ilm.sh
 # Optional, lab only: BACKDATE_DAYS=8 sets index.lifecycle.origination_date on the
 # rolled-over backing indices so the 7d frozen phase starts now instead of in a week.
+# It rolls each stream over first, so the lines ingested so far are in a rolled-over index.
 set -e
 ES_URL=$ELASTIC_ENDPOINT; KB=$KIBANA_URL; API_KEY=$ELASTIC_API_KEY
 H="Authorization: ApiKey $API_KEY"; DIR=$(cd "$(dirname "$0")" && pwd)
@@ -17,6 +18,8 @@ ingest['lifecycle'] = {'ilm': {'policy': 'logs-shop-frozen'}}
 print(json.dumps({'ingest': ingest}))")
   curl -s -X PUT -H "$H" -H 'kbn-xsrf: true' -H 'Content-Type: application/json' "$KB/api/streams/logs.otel.$s/_ingest" -d "$body"; echo
   if [ -n "$BACKDATE_DAYS" ]; then
+    # a 100-minute run never reaches the 1d / 50gb rollover, so roll over now or only empty indices move
+    curl -s -X POST -H "$H" "$ES_URL/logs.otel.$s/_rollover"; echo
     ORIG=$(python3 -c "import time; print(int((time.time()-$BACKDATE_DAYS*86400)*1000))")
     for idx in $(curl -s -H "$H" "$ES_URL/_data_stream/logs.otel.$s" | python3 -c "import json,sys; ix=json.load(sys.stdin)['data_streams'][0]['indices']; print(' '.join(i['index_name'] for i in ix[:-1]))"); do
       curl -s -X PUT -H "$H" -H 'Content-Type: application/json' "$ES_URL/$idx/_settings" -d "{\"index.lifecycle.origination_date\": $ORIG}"; echo " $idx"

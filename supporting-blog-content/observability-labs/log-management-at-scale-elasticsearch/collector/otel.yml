@@ -1,4 +1,4 @@
-# EDOT Collector: tail four log files and send them to the logs.otel wired stream.
+# Elastic Agent as an OTel Collector: tail four log files and send them to the logs.otel wired stream.
 extensions:
   # Remember read offsets so a restart resumes where it stopped instead of skipping lines.
   file_storage:
@@ -11,6 +11,7 @@ receivers:
     resource: { service.name: storefront }
   file_log/orders:
     include: [/var/log/shop/orders.log]
+    include_file_path: true   # recombine groups lines by log.file.path
     storage: file_storage
     resource: { service.name: orders }
     operators:
@@ -44,6 +45,10 @@ exporters:
   elasticsearch:
     endpoints: ["${env:ELASTIC_ENDPOINT}"]
     api_key: ${env:ELASTIC_API_KEY}
+    # file_log sends about 100 lines per request. With the default queue (10 requests) and short lines,
+    # a batch does not reach its 1 MB minimum, so it only flushes every 10 s: about 100 lines/s. A longer queue fills batches.
+    sending_queue:
+      queue_size: 1000
 
 service:
   extensions: [file_storage]
