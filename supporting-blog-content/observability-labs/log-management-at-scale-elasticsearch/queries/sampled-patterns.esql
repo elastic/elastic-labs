@@ -1,0 +1,6 @@
+FROM logs.otel.*
+| SAMPLE 0.05
+| EVAL message = COALESCE(attributes.event, CONCAT(attributes.http.request.method, " ", attributes.url.original))
+| STATS est_lines = COUNT(*) * 20 BY pattern = CATEGORIZE(message, {"output_format": "tokens"})
+| SORT est_lines DESC
+| LIMIT 6

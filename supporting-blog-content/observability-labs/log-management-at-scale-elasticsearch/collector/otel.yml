@@ -1,0 +1,59 @@
+# Elastic Agent as an OTel Collector: tail four log files and send them to the logs.otel wired stream.
+extensions:
+  # Remember read offsets so a restart resumes where it stopped instead of skipping lines.
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+
+receivers:
+  file_log/storefront:
+    include: [/var/log/shop/storefront.log]
+    storage: file_storage
+    resource: { service.name: storefront }
+  file_log/orders:
+    include: [/var/log/shop/orders.log]
+    include_file_path: true   # recombine groups lines by log.file.path
+    storage: file_storage
+    resource: { service.name: orders }
+    operators:
+      # Join stack-trace lines to the log line that starts with a timestamp.
+      - type: recombine
+        combine_field: body
+        is_first_entry: body matches "^\\d{4}-\\d{2}-\\d{2}T"
+        source_identifier: attributes["log.file.path"]
+  file_log/billing:
+    include: [/var/log/shop/billing.log]
+    storage: file_storage
+    resource: { service.name: billing }
+  file_log/stock-worker:
+    include: [/var/log/shop/stock-worker.log]
+    storage: file_storage
+    resource: { service.name: stock-worker }
+
+processors:
+  resource_detection:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+  # Send every log record to the wired stream endpoint; Streams routes it from there.
+  transform/logs-streams:
+    log_statements:
+      - context: resource
+        statements:
+          - set(attributes["elasticsearch.index"], "logs.otel")
+
+exporters:
+  elasticsearch:
+    endpoints: ["${env:ELASTIC_ENDPOINT}"]
+    api_key: ${env:ELASTIC_API_KEY}
+    # file_log sends about 100 lines per request. With the default queue (10 requests) and short lines,
+    # a batch does not reach its 1 MB minimum, so it only flushes every 10 s: about 100 lines/s. A longer queue fills batches.
+    sending_queue:
+      queue_size: 1000
+
+service:
+  extensions: [file_storage]
+  pipelines:
+    logs:
+      receivers: [file_log/storefront, file_log/orders, file_log/billing, file_log/stock-worker]
+      processors: [resource_detection, transform/logs-streams]
+      exporters: [elasticsearch]

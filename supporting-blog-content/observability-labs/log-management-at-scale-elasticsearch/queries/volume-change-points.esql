@@ -1,0 +1,6 @@
+FROM logs.otel.*
+| STATS lines = COUNT(*) BY minute = BUCKET(@timestamp, 1 minute), stream.name
+| CHANGE_POINT lines ON minute BY stream.name
+| WHERE type IS NOT NULL
+| KEEP stream.name, minute, type, lines, pvalue
+| LIMIT 10
