@@ -133,11 +133,26 @@ Processors are **`unshift`ed** onto the provider’s internal processor list—t
 
 ## Step 4 — Boundaries: where the team context lives
 
-Attributes follow **context**, not package names. HTTP clients in shared contracts do not hardcode a team; the **caller’s boundary** decides attribution.
+Processors from Step 3 need a **current team** at emit time. That value does not come from which npm package built the code—Webpack and Module Federation do not tag `fetch` or click logs with “auth” vs “dashboard” by default. It comes from **which slice of the UI tree** was active when the signal was created.
 
-We introduced **`MicrofrontendBoundary`**: a React wrapper that combines OpenTelemetry `context.with` with a small UI-team stack for work that loses async context (clicks, idle callbacks, and similar).
+Attributes therefore follow **OpenTelemetry context**, not repository boundaries. Shared **contracts** stay types-only: HTTP clients do not hardcode `team.name`. The microfrontend that triggered the work—wrapped in a boundary—defines attribution for automatic and manual telemetry alike.
+
+### `MicrofrontendBoundary`
+
+`@mfe/telemetry` exports **`MicrofrontendBoundary`**, a React wrapper that does three things at a high level:
+
+1. **`runWithTeam`** during render so synchronous work and children start under the right OpenTelemetry context.
+2. A small **UI team stack** (push on mount, pop on unmount) so `getTeamName()` still resolves correctly when async browser work does not carry context—common for user-action logs and some `fetch` calls kicked off from handlers.
+3. A `data-mfe-team` marker on a `display: contents` wrapper for debugging and tests without affecting layout.
+
+Step 3 processors call `__MFE_TELEMETRY__.getTeamName(ctx)`; boundaries are what make that answer match the team that owns the screen.
+
+### Shell and remote both wrap
+
+**Shell** owns composition: it wraps the global layout in `TEAM_NAMES.platformShell` and wraps each federated route with that remote’s id. **Each remote** wraps its own `App` root with the same constant when the shell loads it.
 
 ```tsx
+// Shell — route to auth remote
 <MicrofrontendBoundary teamName={TEAM_NAMES.identity}>
   <Suspense fallback={…}>
     <AuthApp />
@@ -145,9 +160,26 @@ We introduced **`MicrofrontendBoundary`**: a React wrapper that combines OpenTel
 </MicrofrontendBoundary>
 ```
 
-**Shell** wraps its layout in `platform-shell` and wraps each federated route with that remote’s team id. **Each remote** wraps its own `App` root with the same constant. That double boundary is intentional: shell protects platform routing; the remote protects code paths that only exist inside the federated entry.
+```tsx
+// Auth remote — federated App entry
+export default function App() {
+  return (
+    <MicrofrontendBoundary teamName={TEAM_NAMES.identity}>
+      <Routes>{/* login, register, … */}</Routes>
+    </MicrofrontendBoundary>
+  );
+}
+```
 
-Registry constants (`identity`, `gallery`, `media-detail`, …) live in `@mfe/telemetry` so Kibana filters and code stay aligned.
+The **double boundary** is deliberate. The shell guarantees correct `team.name` when a team forgets to wrap an export, when `Suspense` or routing mounts the remote, or when you reorganize host routes. The remote guarantees attribution when that package is developed or tested in isolation against the same constant. Nested boundaries push onto the same stack; the **innermost** team wins for telemetry while a child remote is mounted—so gallery traffic does not inherit `platform-shell` just because the header still belongs to the host.
+
+### Team registry
+
+Canonical ids live in **`TEAM_NAMES`** inside `@mfe/telemetry` (`platform-shell`, `identity`, `gallery`, `media-detail`, …). Product teams import the constant instead of scattering string literals; platform aligns those values with Kibana saved filters and ownership docs.
+
+### When React is not enough
+
+Long-lived work started **outside** render—manual `setTimeout`, one-off promises, or legacy callbacks—should use **`runWithTeam`** from the same package so context matches the boundary. That is the exception; most UI paths are covered by `MicrofrontendBoundary` around the route or `App` root.
 
 ## Step 5 — Sessions and logout
 
