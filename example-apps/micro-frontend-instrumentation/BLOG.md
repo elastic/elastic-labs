@@ -1,20 +1,31 @@
 # Observability in a federated frontend: one browser agent, many teams
 
-We instrumented a Module Federation photo app with **EDOT Browser** so platform and feature teams can filter Real User Monitoring (RUM) to **only the telemetry their microfrontend produced**—without running separate agents per team or splitting the product into unrelated services in Elastic.
+Large frontends often outgrow a single repository and a single release train. **Microfrontends** split the UI into pieces that **align with team boundaries**: each group owns a vertical slice—login, a dashboard, a checkout flow—and ships on its own cadence while users still see one product.
+
+That goal shows up in several **shapes**, and the shape affects how you run and observe the browser:
+
+- **Build-time composition** — packages are linked at build time (monorepo or multi-package app). Teams own folders or workspaces; runtime is still one bundle unless you split further.
+- **Runtime integration via iframes or Web Components** — strong isolation, sometimes separate documents and origins. Telemetry can be per-frame or per widget, with clear boundaries but more integration overhead.
+- **Module Federation (and similar)** — independently built **remote** entry points load into a **host shell** at runtime. Teams deploy artifacts; the browser executes one app with shared libraries and often a **shared client router**.
+- **Orchestration frameworks** (e.g. single-spa) — lifecycle and mounting of multiple SPAs on one page; team ownership maps to registered applications and routes.
+
+Across these models, organizations gain **clear ownership**, parallel delivery, and contracts between platform and feature teams. Observability should respect the same lines: platform SREs care about the whole journey; product teams want signals **without wading through everyone else’s clicks and HTTP calls**.
+
+**Labeling telemetry per team** helps on both sides. In Elastic (or any OTLP backend), a stable attribute such as **`team.name`** on spans and log records lets each team build Discover views and alerts for their slice—while the product can still be modeled as **one browser service** for session and end-to-end tracing. Without that label, a single RUM agent on a composed page reports one undifferentiated stream; with it, auth noise does not drown out gallery work in a team’s dashboard.
+
+In this post we instrument one concrete variant: **Module Federation plus client-side routing**—a shell host that lazy-loads team-owned remotes under route prefixes, with shared React and `react-router-dom`. We use **EDOT Browser** (bundle in the shell only) and a small **`@mfe/telemetry`** layer so **`team.name`** is attached without each team shipping its own agent.
 
 ## The application
 
-The sample is a small photo gallery: a **shell** host on port 3000 loads three **remotes** at runtime—**auth** (login/register), **dashboard** (gallery), and **photo** (detail and comments)—over a shared REST API. Webpack Module Federation shares React and the router so every remote runs in **one browser tab, one JavaScript realm**, even though each team builds and deploys its own package independently.
+The sample is a photo gallery monorepo: a **shell** loads three **remotes** at runtime—**auth**, **dashboard**, and **photo**—over a shared REST API. Webpack Module Federation exposes `remoteEntry.js` per remote; the shell maps URLs like `/auth/*`, `/dashboard/*`, and `/photo/:photoId` to federated `App` components. Everything runs in **one tab, one JavaScript realm** even though each team builds and deploys independently.
 
-Shared **contracts** hold API types only; they are not a runtime UI layer. That keeps team ownership clear: each remote owns its routes and UI, the shell owns composition and global chrome.
+Shared **contracts** are types only (no UI). The shell owns global layout; each remote owns its sub-routes under its mount path.
 
-## Why “one service” is not enough for teams
+## One agent, many producers
 
-A single RUM deployment is the right default for Module Federation. You get one page load, one session story, and traces that span shell → remote → API. If every team installed its own browser SDK, you would fight double instrumentation, conflicting globals, and duplicated session logic.
+For Module Federation, **one browser SDK per page** is the right default: one document load, one session, traces that can span shell → remote → API. Giving every team its own EDOT install would duplicate instrumentation and break global session semantics.
 
-The product still appears as **one frontend service** in Elastic (`photo-service-web` in our setup). What teams need for day-to-day work is different: in Discover or Traces they want filters like “show me auth clicks and `fetch` calls, not dashboard noise.” That means every span and log record needs a stable attribute—we use **`team.name`**—that identifies which microfrontend (which team) was active when the signal was created.
-
-Resource-level tags on the SDK are not enough. They describe the whole page. Per-team filtering needs **signal-level** attributes on spans and log records, derived from **which part of the React tree** (or which async work) was running at emit time.
+So we keep a single `serviceName` in Elastic (`photo-service-web`) and separate concerns with **`team.name` on each span and log record**. Resource-level SDK tags describe the whole app; **signal-level** attributes must reflect **which microfrontend was active** when the signal was created—hence boundaries and processors later in this post.
 
 ## Design choices at a glance
 
