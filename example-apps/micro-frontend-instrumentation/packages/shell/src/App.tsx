@@ -30,25 +30,31 @@ export default function App() {
         <Route
           path="auth/*"
           element={
-            <Suspense fallback={<RemoteFallback label="auth" />}>
-              <AuthApp />
-            </Suspense>
+            <MicrofrontendBoundary teamName={TEAM_NAMES.identity}>
+              <Suspense fallback={<RemoteFallback label="auth" />}>
+                <AuthApp />
+              </Suspense>
+            </MicrofrontendBoundary>
           }
         />
         <Route
           path="dashboard/*"
           element={
-            <Suspense fallback={<RemoteFallback label="dashboard" />}>
-              <DashboardApp />
-            </Suspense>
+            <MicrofrontendBoundary teamName={TEAM_NAMES.gallery}>
+              <Suspense fallback={<RemoteFallback label="dashboard" />}>
+                <DashboardApp />
+              </Suspense>
+            </MicrofrontendBoundary>
           }
         />
         <Route
           path="photo/:photoId"
           element={
-            <Suspense fallback={<RemoteFallback label="photo" />}>
-              <PhotoApp />
-            </Suspense>
+            <MicrofrontendBoundary teamName={TEAM_NAMES.mediaDetail}>
+              <Suspense fallback={<RemoteFallback label="photo" />}>
+                <PhotoApp />
+              </Suspense>
+            </MicrofrontendBoundary>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
