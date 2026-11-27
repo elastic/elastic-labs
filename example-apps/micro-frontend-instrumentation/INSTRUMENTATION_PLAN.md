@@ -56,6 +56,195 @@ Define canonical values in `@mfe/telemetry` (single source of truth for Kibana f
 
 Export `TEAM_NAME` constants per app from `@mfe/telemetry` (or per-app re-exports) so teams do not hardcode strings.
 
+## Execution roadmap (verifiable steps)
+
+Implement and **stop after each step** to verify before continuing. Later steps build on earlier ones.
+
+**Verification tooling (pick what you have):**
+
+| Level | Use when |
+| --- | --- |
+| **A — Browser only** | No collector yet; validate load, SDK, and export *attempts* |
+| **B — Local OTLP** | Collector or gateway on `localhost:4318` (or your proxy) receives payloads |
+| **C — Elastic** | Full RUM in Kibana / Discover |
+
+---
+
+### Step 0 — Baseline (no instrumentation)
+
+**Do:** `npm install`, `npm run dev`, open [http://localhost:3000](http://localhost:3000).
+
+**Verify:**
+
+- [ ] App works: home, `/auth/login`, `/dashboard`, photo detail.
+- [ ] Shell `index.html` has **no** EDOT scripts yet (baseline for regressions).
+
+---
+
+### Step 1 — Vendor EDOT file is served
+
+**Do:**
+
+- Add `packages/shell/public/vendor/elastic-otel-browser.min.js` (+ `EDOT_BROWSER_VERSION`).
+- Ensure webpack serves `public/vendor/` in dev and production (add `copy-webpack-plugin` from `public/vendor` → `dist/vendor` if your build does not copy it today).
+
+**Verify (A):**
+
+- [ ] `curl -sI http://localhost:3000/vendor/elastic-otel-browser.min.js` → `200`.
+- [ ] In DevTools Console on `/`: `typeof startBrowserSdk === 'function'`.
+
+**Do not** call `startBrowserSdk` yet — only load the script in `index.html` for this step if you want an even smaller increment:
+
+```html
+<script src="/vendor/elastic-otel-browser.min.js" crossorigin></script>
+```
+
+---
+
+### Step 2 — EDOT starts (no export backend required yet)
+
+**Do:** Add inline `startBrowserSdk({ … })` per §1.2 with:
+
+- `logLevel: 'debug'`
+- `exportConfig.url` pointing at your proxy **or** a deliberate invalid URL you control for this step (exports will fail; SDK should still run)
+
+**Verify (A):**
+
+- [ ] No red errors in console; EDOT diagnostic lines appear at `debug` level.
+- [ ] `globalThis.__EDOT_SDK__` is an object with `getSession`, `observe`, `endSession`.
+- [ ] After the app chunk loads, from any MFE that imports `@opentelemetry/api`: `trace.getTracerProvider().getTracer('test').startSpan('ping').end()` does not throw (SDK is active; the EDOT bundle does not expose `trace` on `window`).
+
+**Verify (B)** — optional:
+
+- [ ] DevTools → Network: `POST` to `…/v1/traces` or `…/v1/logs` (may be `4xx` until Step 3).
+
+---
+
+### Step 3 — OTLP export path works
+
+**Do:** Run reverse proxy or local OTLP HTTP endpoint per §1.3; set real `exportConfig.url`; fix CORS on the proxy for `http://localhost:3000`.
+
+**Verify (B):**
+
+- [ ] Network: `POST` to export URL returns **2xx** (not blocked by CORS).
+- [ ] Collector logs or proxy access log show incoming OTLP bodies.
+
+**Verify (C)** — optional:
+
+- [ ] Service **`photo-service-web`** appears in Elastic; at least one trace or log record within a few minutes of browsing.
+
+At this step **`team.name` is not required** — you are proving plumbing only.
+
+---
+
+### Step 4 — `@mfe/telemetry` context (no processors)
+
+**Do:**
+
+- Create `packages/telemetry` workspace `@mfe/telemetry` with `TEAM_NAMES`, `runWithTeam`, `getActiveTeamName`, `installTelemetryBridge()`.
+- Add `@opentelemetry/api` as federation shared singleton (§2.1).
+- Import `installTelemetryBridge()` first in `packages/shell/src/index.tsx`.
+
+**Verify (A):**
+
+- [ ] In console after app loads: `globalThis.__MFE_TELEMETRY__.getTeamName()` returns `'platform-shell'` by default.
+- [ ] Temporary debug snippet in shell (remove before merge): `runWithTeam('identity', () => console.log(getActiveTeamName()))` prints `identity`.
+- [ ] `npm run build` still succeeds for shell and one remote.
+
+---
+
+### Step 5 — Team processors + IIFE
+
+**Do:**
+
+- Implement `installTeamProcessors()`, `TeamSpanProcessor`, `TeamLogRecordProcessor` (§1.2.1).
+- Build `mfe-telemetry-processors.iife.js` into `public/vendor/`; wire HTML scripts after `startBrowserSdk`.
+
+**Verify (A):**
+
+- [ ] `globalThis.__MFE_TELEMETRY_INSTALL__.installTeamProcessors()` runs without throwing (or call once in console before/after navigation).
+- [ ] Add temporary `logLevel: 'verbose'` and confirm no processor registration warnings.
+
+**Verify (B/C):**
+
+- [ ] Export payload (collector or Elastic JSON): spans and/or logs include **`team.name`: `platform-shell`** for home page activity (fallback before boundaries).
+- [ ] At least one **`external.http`** span and one log signal (e.g. navigation or user-action after a click) contain the attribute.
+
+---
+
+### Step 6 — Shell layout team context
+
+**Do:**
+
+- Implement `MicrofrontendBoundary`.
+- Wrap shell-owned UI (layout, home) with `TEAM_NAMES.platformShell` (or equivalent).
+
+**Verify (B/C):**
+
+- [ ] On `/` only: new telemetry keeps `team.name: platform-shell`.
+- [ ] Click nav link: user-action / navigation logs still `platform-shell` until a remote mounts.
+
+---
+
+### Step 7 — Shell wraps federated remotes
+
+**Do:** In `packages/shell/src/App.tsx`, wrap each lazy remote route in `MicrofrontendBoundary` with the correct `TEAM_NAMES.*`.
+
+**Verify (C):**
+
+| Route | Action | Expected `team.name` |
+| --- | --- | --- |
+| `/auth/login` | Focus field, failed login | `identity` on fetch span to API |
+| `/dashboard` | Load gallery | `gallery` on photo list fetch |
+| `/photo/:id` | Open detail, add comment | `media-detail` on relevant fetches |
+
+- [ ] Elastic/Kibana filter `team.name : "identity"` shows **no** dashboard-only traffic after you only visited auth (noise isolation spot check).
+
+---
+
+### Step 8 — Remote-owned boundaries
+
+**Do:** Each remote wraps its `App` root (§2.3); add `@mfe/telemetry` dependency per package.
+
+**Verify (C):**
+
+- [ ] Same table as Step 7 still passes if shell wrapper is temporarily removed locally (proves remote boundary).
+- [ ] Opening the same route twice does not duplicate or drop attributes.
+
+---
+
+### Step 9 — Session end on logout (optional but recommended)
+
+**Do:** Auth logout calls `globalThis.__EDOT_SDK__?.endSession?.()`.
+
+**Verify (A/C):**
+
+- [ ] After logout, next login gets a new `session.id` in exported telemetry (compare two sessions in Discover).
+
+---
+
+### Step 10 — Production-shaped build
+
+**Do:** `npm run build -w @mfe/shell`, serve `dist/`, set `PUBLIC_PATH` / remote URLs as in README.
+
+**Verify:**
+
+- [ ] `dist/vendor/elastic-otel-browser.min.js` exists and loads.
+- [ ] Steps 2–3 checks pass against the built artifact, not only dev server.
+
+---
+
+### Step 11 — Team rollout (parallel)
+
+**Do:** Phase 3 checklist per team; document Kibana saved searches.
+
+**Verify (C):**
+
+- [ ] Each team validates only their filter in a shared Elastic space.
+- [ ] Standalone remotes on 3001–3003: confirm **no** OTLP traffic when opened directly (per decision).
+
+---
+
 ## Phase 1 — Platform: shell EDOT bootstrap
 
 ### 1.1 Local EDOT bundle (no npm)
@@ -296,6 +485,8 @@ Shell team additionally maintains vendor bundle copy, init script, proxy URL wir
 
 ## Phase 4 — Verification
 
+This is the **full** acceptance pass after **Steps 0–11**. For day-to-day work, use the per-step checklists in [Execution roadmap](#execution-roadmap-verifiable-steps).
+
 1. Shell at `localhost:3000` with proxy forwarding to Elastic ingest.
 2. Browse `/`, `/auth/login`, `/dashboard`, `/photo/:id`; confirm console has no EDOT errors.
 3. In Elastic: filter traces and logs by `team.name` per route; shell navigation logs should show `platform-shell`, auth API calls from login should show `identity`, etc.
@@ -314,12 +505,16 @@ Shell team additionally maintains vendor bundle copy, init script, proxy URL wir
 
 ## Implementation order (suggested)
 
-1. Create `@mfe/telemetry` + federation share for `@opentelemetry/api`; build `mfe-telemetry-processors.iife.js`.
-2. Shell: add committed `public/vendor/elastic-otel-browser.min.js` + processors IIFE, HTML init (`startBrowserSdk` + synchronous `installTeamProcessors()`), `installTelemetryBridge()` in entry.
-3. Shell: route boundaries for remotes.
-4. Each remote: root `MicrofrontendBoundary`.
-5. Proxy + environment wiring for `exportConfig.url` and `deployment.environment.name`.
-6. Documentation in README linking to this file and team filter examples in Kibana.
+Follow **[Execution roadmap](#execution-roadmap-verifiable-steps)** (Steps 0–11). Summary mapping:
+
+| Roadmap step | Topic |
+| --- | --- |
+| 0 | Baseline app |
+| 1–2 | Vendor file + `startBrowserSdk` |
+| 3 | Proxy / OTLP |
+| 4–5 | `@mfe/telemetry` + processors IIFE |
+| 6–8 | Boundaries (shell → remotes) |
+| 9–11 | Logout session, prod build, team rollout |
 
 ## Open items (non-blocking)
 
