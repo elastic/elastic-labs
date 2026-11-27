@@ -110,8 +110,8 @@ Implement and **stop after each step** to verify before continuing. Later steps 
 
 **Verify (A):**
 
-- [ ] No red errors in console; EDOT diagnostic lines appear at `debug` level.
-- [ ] `globalThis.__EDOT_SDK__` is an object with `getSession`, `observe`, `endSession`.
+- [x] No red errors in console; EDOT diagnostic lines appear at `debug` level.
+- [x] `globalThis.__EDOT_SDK__` is an object with `getSession`, `observe`, `endSession`.
 - [ ] After the app chunk loads, from any MFE that imports `@opentelemetry/api`: `trace.getTracerProvider().getTracer('test').startSpan('ping').end()` does not throw (SDK is active; the EDOT bundle does not expose `trace` on `window`).
 
 **Step 2 config in repo:** `exportConfig.url` is set to `https://edot-micro-fes-df9500.ingest.europe-southwest1.gcp.elastic.cloud` in `packages/shell/public/index.html` (EDOT appends `/v1/traces` and `/v1/logs`).
@@ -149,9 +149,10 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 **Verify (A):**
 
-- [ ] In console after app loads: `globalThis.__MFE_TELEMETRY__.getTeamName()` returns `'platform-shell'` by default.
-- [ ] Temporary debug snippet in shell (remove before merge): `runWithTeam('identity', () => console.log(getActiveTeamName()))` prints `identity`.
-- [ ] `npm run build` still succeeds for shell and one remote.
+- [ ] In console after app loads: `globalThis.__MFE_TELEMETRY__.getTeamName()` returns `'platform-shell'` by default (bridge upgrades after app chunk; inline HTML fallback is also `'platform-shell'` until bridge runs).
+- [ ] Context check in console: `__MFE_TELEMETRY__.runWithTeam('identity', () => console.log(__MFE_TELEMETRY__.getTeamName()))` → `identity`.
+- [ ] `trace` check (optional): Shell bundle shares `@opentelemetry/api`; after load, dynamic import from the app chunk is enough, or verify in Step 5 when processors run.
+- [x] `npm run build` succeeds for `@mfe/telemetry` and `@mfe/shell`.
 
 ---
 

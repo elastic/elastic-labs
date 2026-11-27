@@ -16,6 +16,11 @@ const sharedDependencies = {
     requiredVersion: "^6.28.0",
     eager: false,
   },
+  "@opentelemetry/api": {
+    singleton: true,
+    requiredVersion: "^1.9.0",
+    eager: true,
+  },
 };
 
 /**
