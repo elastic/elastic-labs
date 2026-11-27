@@ -114,6 +114,8 @@ Implement and **stop after each step** to verify before continuing. Later steps 
 - [ ] `globalThis.__EDOT_SDK__` is an object with `getSession`, `observe`, `endSession`.
 - [ ] After the app chunk loads, from any MFE that imports `@opentelemetry/api`: `trace.getTracerProvider().getTracer('test').startSpan('ping').end()` does not throw (SDK is active; the EDOT bundle does not expose `trace` on `window`).
 
+**Step 2 config in repo:** `exportConfig.url` is set to `https://edot-micro-fes-df9500.ingest.europe-southwest1.gcp.elastic.cloud` in `packages/shell/public/index.html` (EDOT appends `/v1/traces` and `/v1/logs`).
+
 **Verify (B)** — optional:
 
 - [ ] DevTools → Network: `POST` to `…/v1/traces` or `…/v1/logs` (may be `4xx` until Step 3).
