@@ -183,14 +183,35 @@ Long-lived work started **outside** render—manual `setTimeout`, one-off promis
 
 ## Step 5 — Sessions and logout
 
-RUM sessions are browser-wide. When the shell clears auth on logout, it also calls **`endSession()`** on the EDOT handle so the next user does not inherit the previous `session.id`.
+**EDOT Browser** includes **session management** aimed at RUM: it groups traces and logs into browser sessions, applies session-level sampling, and can correlate activity across tabs of the same origin. You do not implement sessions yourself; they start when the agent initializes and user activity keeps them alive.
 
-```ts
-endBrowserEdotSession();
-clearSession();
+Sampled sessions add attributes such as **`session.id`**, and often **`session.previous_id`** after rotation, **`session.sampling_rate`**, and **`browser.tab.id`**, on **spans and log records** exported to Elastic. Those fields sit alongside **`team.name`** from Steps 3–4, so you can analyze “this auth team’s traffic in session X” without conflating two users on a shared machine.
+
+Store the return value of `startBrowserSdk` on a global the shell controls—for example `globalThis.__EDOT_SDK__`—so application code can call session APIs without importing the full EDOT bundle:
+
+```html
+<script>
+  globalThis.__EDOT_SDK__ = startBrowserSdk({ /* … */ });
+</script>
 ```
 
-Logout lives in the shell header in this app, not in the auth remote—but the pattern is the same wherever “user session ends” is defined.
+**Application auth** and **RUM session** are different concepts. Clearing a JWT from `localStorage` does not automatically start a new browser RUM session. If a second user signs in on the same tab without ending the RUM session, their traces and logs may still carry the **previous** `session.id`, which blurs user journeys in Discover.
+
+When the product’s “user session ends” moment fires—here, **Log out** in the shell header—run **`endSession()`** on the EDOT handle **before** clearing app auth state. `@mfe/telemetry` wraps that as **`endBrowserEdotSession()`**:
+
+```ts
+function onLogout() {
+  endBrowserEdotSession();
+  clearSession();
+  navigate("/", { replace: true });
+}
+```
+
+EDOT ends the current session, notifies session lifecycle observers, and starts fresh session state on the next qualifying activity. The next exported events should get a **new** `session.id` (with the prior id available as `session.previous_id` where applicable).
+
+Logout UI lives in the **shell** in this sample, not in the auth remote, but the rule is the same wherever logout is defined: pair **identity teardown** with **`endSession()`** whenever a different person might use the same browser tab.
+
+Optional tuning—`session.sampleRate`, inactivity timeout, `maxDuration`—is configured on `startBrowserSdk` when you need to control volume in production; defaults are fine for the lab app.
 
 ## What teams see in Elastic
 
