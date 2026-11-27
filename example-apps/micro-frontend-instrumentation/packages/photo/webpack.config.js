@@ -1,0 +1,57 @@
+const path = require("path");
+const webpack = require("webpack");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const { ModuleFederationPlugin } = require("webpack").container;
+const {
+  sharedDependencies,
+  createDevServer,
+} = require("../webpack-shared/federation-shared");
+
+const PORT = 3003;
+const publicPath =
+  process.env.PUBLIC_PATH || `http://localhost:${PORT}/`;
+
+module.exports = {
+  entry: "./src/index.tsx",
+  output: {
+    path: path.resolve(__dirname, "dist"),
+    publicPath,
+    clean: true,
+  },
+  resolve: {
+    extensions: [".tsx", ".ts", ".js"],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        loader: "ts-loader",
+        options: { transpileOnly: true },
+        exclude: /node_modules/,
+      },
+      { test: /\.css$/i, use: ["style-loader", "css-loader"] },
+    ],
+  },
+  plugins: [
+    new webpack.DefinePlugin({
+      "process.env.API_URL": JSON.stringify(
+        process.env.API_URL ||
+          process.env.AUTH_API_URL ||
+          "http://localhost:4000"
+      ),
+      "process.env.AUTH_API_URL": JSON.stringify(
+        process.env.AUTH_API_URL || "http://localhost:4000"
+      ),
+    }),
+    new ModuleFederationPlugin({
+      name: "photo",
+      filename: "remoteEntry.js",
+      exposes: {
+        "./App": "./src/App",
+      },
+      shared: sharedDependencies,
+    }),
+    new HtmlWebpackPlugin({ template: "./public/index.html" }),
+  ],
+  devServer: createDevServer({ name: "photo", port: PORT }),
+};

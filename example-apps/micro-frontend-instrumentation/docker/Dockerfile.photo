@@ -1,0 +1,19 @@
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package.json ./
+COPY packages/webpack-shared ./packages/webpack-shared
+COPY packages/contracts ./packages/contracts
+COPY packages/photo ./packages/photo
+
+RUN npm install
+
+ARG PUBLIC_PATH=http://localhost:3003/
+ENV PUBLIC_PATH=$PUBLIC_PATH
+
+RUN npm run build -w @mfe/contracts
+RUN npm run build -w @mfe/photo
+
+FROM nginx:1.27-alpine
+COPY packages/photo/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/packages/photo/dist /usr/share/nginx/html

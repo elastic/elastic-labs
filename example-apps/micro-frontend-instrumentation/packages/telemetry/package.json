@@ -1,0 +1,24 @@
+{
+  "name": "@mfe/telemetry",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && npm run build:iife",
+    "build:iife": "esbuild src/processors-iife.ts --bundle --format=iife --global-name=__MFE_TELEMETRY_INSTALL__ --outfile=../shell/public/vendor/mfe-telemetry-processors.iife.js --platform=browser --minify",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "esbuild": "^0.25.0",
+    "react": "^18.3.1",
+    "typescript": "^5.7.2"
+  }
+}

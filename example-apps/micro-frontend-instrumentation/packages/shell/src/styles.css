@@ -1,0 +1,166 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.shell-brand a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shell-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.shell-logout {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #64748b;
+  background: transparent;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.shell-logout:hover {
+  background: rgb(248 250 252 / 10%);
+  border-color: #94a3b8;
+}
+
+.shell-main {
+  min-height: calc(100vh - 3.25rem);
+}
+
+.landing {
+  padding: 2.5rem 1.25rem 4rem;
+  display: flex;
+  justify-content: center;
+}
+
+.landing-banner {
+  width: 100%;
+  max-width: 52rem;
+  padding: clamp(2.25rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
+  border-radius: 20px;
+  color: #f8fafc;
+  background:
+    linear-gradient(135deg, rgb(15 23 42 / 92%), rgb(22 101 52 / 88%)),
+    url("https://picsum.photos/seed/landing-hero/1400/600") center / cover
+      no-repeat;
+  box-shadow:
+    0 25px 50px -12px rgb(15 23 42 / 35%),
+    0 0 0 1px rgb(255 255 255 / 8%) inset;
+}
+
+.landing-eyebrow {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #bbf7d0;
+}
+
+.landing-title {
+  margin: 0 0 1rem;
+  max-width: 28ch;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.landing-message {
+  margin: 0 0 2rem;
+  max-width: 46ch;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.landing-btn:hover {
+  transform: translateY(-1px);
+}
+
+.landing-btn-primary {
+  background: #22c55e;
+  color: #052e16;
+  border: 1px solid #4ade80;
+}
+
+.landing-btn-primary:hover {
+  background: #4ade80;
+}
+
+.landing-btn-secondary {
+  background: rgb(15 23 42 / 45%);
+  color: #f8fafc;
+  border: 1px solid rgb(248 250 252 / 35%);
+  backdrop-filter: blur(4px);
+}
+
+.landing-btn-secondary:hover {
+  background: rgb(15 23 42 / 65%);
+  border-color: rgb(248 250 252 / 55%);
+}
+
+.remote-loading {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+code {
+  font-size: 0.9em;
+  background: #e2e8f0;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

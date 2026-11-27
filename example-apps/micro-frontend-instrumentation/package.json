@@ -1,0 +1,21 @@
+{
+  "name": "micro-frontend-instrumentation",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @mfe/contracts && npm run build -w @mfe/telemetry && concurrently -n shell,auth,dashboard,photo,api -c blue,green,magenta,cyan,yellow \"npm run dev -w @mfe/shell\" \"npm run dev -w @mfe/auth\" \"npm run dev -w @mfe/dashboard\" \"npm run dev -w @mfe/photo\" \"npm run dev -w @mfe/api\"",
+    "build": "npm run build -w @mfe/contracts && npm run build -w @mfe/telemetry && npm run build -w @mfe/api && npm run build -w @mfe/auth && npm run build -w @mfe/dashboard && npm run build -w @mfe/photo && npm run build -w @mfe/shell",
+    "build:api": "npm run build -w @mfe/api",
+    "build:shell": "npm run build -w @mfe/shell",
+    "build:auth": "npm run build -w @mfe/auth",
+    "build:dashboard": "npm run build -w @mfe/dashboard",
+    "build:photo": "npm run build -w @mfe/photo",
+    "build:shell:static": "npm run build -w @mfe/telemetry && PUBLIC_PATH=/ npm run build -w @mfe/shell",
+    "serve:shell": "npm run build:shell:static && npx --yes serve packages/shell/dist -l 3456"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

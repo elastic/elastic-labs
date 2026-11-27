@@ -1,0 +1,22 @@
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/api ./packages/api
+
+RUN npm ci --workspace=@mfe/api
+RUN npm run build -w @mfe/api
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=4000
+
+COPY package.json package-lock.json ./
+COPY packages/api/package.json ./packages/api/
+RUN npm ci --workspace=@mfe/api --omit=dev
+
+COPY --from=build /app/packages/api/dist ./packages/api/dist
+
+EXPOSE 4000
+CMD ["node", "packages/api/dist/index.js"]

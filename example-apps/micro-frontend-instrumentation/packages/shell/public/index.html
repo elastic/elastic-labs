@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MFE Shell</title>
+    <script src="/vendor/elastic-otel-browser.min.js" crossorigin></script>
+    <script>
+      globalThis.__MFE_TELEMETRY__ = {
+        getTeamName: function () {
+          return "platform-shell";
+        },
+        teamAttributeKey: "team.name",
+      };
+
+      globalThis.__EDOT_SDK__ = startBrowserSdk({
+        serviceName: "photo-service-web",
+        serviceVersion: "0.0.1",
+        logLevel: "debug",
+        resourceAttributes: {
+          "deployment.environment.name": "development",
+        },
+        exportConfig: {
+          url: "https://edot-micro-fes-df9500.ingest.europe-southwest1.gcp.elastic.cloud",
+        },
+        ignoreFetchUrls: [
+          /\/remoteEntry\.js(\?|$)/,
+          /\/v1\/(traces|logs)(\?|$)/,
+        ],
+      });
+    </script>
+    <script src="/vendor/mfe-telemetry-processors.iife.js"></script>
+    <script>
+      globalThis.__MFE_TELEMETRY_INSTALL__?.installTeamProcessors();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
