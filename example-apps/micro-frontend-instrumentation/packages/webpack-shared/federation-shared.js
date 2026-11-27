@@ -4,17 +4,17 @@ const sharedDependencies = {
   react: {
     singleton: true,
     requiredVersion: "^18.3.1",
-    eager: false,
+    eager: true,
   },
   "react-dom": {
     singleton: true,
     requiredVersion: "^18.3.1",
-    eager: false,
+    eager: true,
   },
   "react-router-dom": {
     singleton: true,
     requiredVersion: "^6.28.0",
-    eager: false,
+    eager: true,
   },
   "@opentelemetry/api": {
     singleton: true,

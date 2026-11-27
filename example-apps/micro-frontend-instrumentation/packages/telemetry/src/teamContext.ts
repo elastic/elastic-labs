@@ -12,6 +12,20 @@ export const TEAM_NAMES = {
 const TEAM_CONTEXT_KEY = createContextKey("mfe.telemetry.team.name");
 const DEFAULT_TEAM = TEAM_NAMES.platformShell;
 
+/** Fallback when OTel context is lost across async / DOM listeners (innermost boundary wins). */
+const activeUiTeamStack: string[] = [];
+
+export function pushActiveUiTeam(teamName: string): void {
+  activeUiTeamStack.push(teamName);
+}
+
+export function popActiveUiTeam(teamName: string): void {
+  const index = activeUiTeamStack.lastIndexOf(teamName);
+  if (index >= 0) {
+    activeUiTeamStack.splice(index, 1);
+  }
+}
+
 export function runWithTeam<T>(teamName: string, fn: () => T): T {
   const active = context.active();
   return context.with(active.setValue(TEAM_CONTEXT_KEY, teamName), fn);
@@ -20,5 +34,8 @@ export function runWithTeam<T>(teamName: string, fn: () => T): T {
 export function getActiveTeamName(activeContext?: Context): string {
   const ctx = activeContext ?? context.active();
   const team = ctx.getValue(TEAM_CONTEXT_KEY);
-  return typeof team === "string" && team.length > 0 ? team : DEFAULT_TEAM;
+  if (typeof team === "string" && team.length > 0) return team;
+  const uiTeam = activeUiTeamStack[activeUiTeamStack.length - 1];
+  if (uiTeam) return uiTeam;
+  return DEFAULT_TEAM;
 }

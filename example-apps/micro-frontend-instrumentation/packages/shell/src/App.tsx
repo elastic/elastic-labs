@@ -1,3 +1,4 @@
+import { MicrofrontendBoundary, TEAM_NAMES } from "@mfe/telemetry";
 import React, { Suspense } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import ShellLayout from "./layout/ShellLayout";
@@ -18,7 +19,13 @@ function RemoteFallback({ label }: { label: string }) {
 export default function App() {
   return (
     <Routes>
-      <Route element={<ShellLayout />}>
+      <Route
+        element={
+          <MicrofrontendBoundary teamName={TEAM_NAMES.platformShell}>
+            <ShellLayout />
+          </MicrofrontendBoundary>
+        }
+      >
         <Route index element={<HomePage />} />
         <Route
           path="auth/*"
