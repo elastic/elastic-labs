@@ -1,4 +1,5 @@
 const path = require("path");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 const {
@@ -47,6 +48,22 @@ module.exports = {
       shared: sharedDependencies,
     }),
     new HtmlWebpackPlugin({ template: "./public/index.html" }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(__dirname, "public/vendor"),
+          to: path.resolve(__dirname, "dist/vendor"),
+        },
+      ],
+    }),
   ],
-  devServer: createDevServer({ name: "shell", port: PORT }),
+  devServer: {
+    ...createDevServer({ name: "shell", port: PORT }),
+    static: [
+      {
+        directory: path.resolve(__dirname, "public"),
+        publicPath: "/",
+      },
+    ],
+  },
 };

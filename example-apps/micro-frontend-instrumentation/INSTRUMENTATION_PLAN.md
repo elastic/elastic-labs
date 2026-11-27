@@ -76,8 +76,8 @@ Implement and **stop after each step** to verify before continuing. Later steps 
 
 **Verify:**
 
-- [ ] App works: home, `/auth/login`, `/dashboard`, photo detail.
-- [ ] Shell `index.html` has **no** EDOT scripts yet (baseline for regressions).
+- [x] App works: home, `/auth/login`, `/dashboard`, photo detail.
+- [x] Shell `index.html` had **no** EDOT scripts yet (baseline for regressions).
 
 ---
 
@@ -90,8 +90,8 @@ Implement and **stop after each step** to verify before continuing. Later steps 
 
 **Verify (A):**
 
-- [ ] `curl -sI http://localhost:3000/vendor/elastic-otel-browser.min.js` → `200`.
-- [ ] In DevTools Console on `/`: `typeof startBrowserSdk === 'function'`.
+- [x] `curl -sI http://localhost:3000/vendor/elastic-otel-browser.min.js` → `200`.
+- [x] In DevTools Console on `/`: `typeof startBrowserSdk === 'function'` (script loads; SDK not started until Step 2).
 
 **Do not** call `startBrowserSdk` yet — only load the script in `index.html` for this step if you want an even smaller increment:
 
