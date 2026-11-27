@@ -149,8 +149,8 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 **Verify (A):**
 
-- [ ] In console after app loads: `globalThis.__MFE_TELEMETRY__.getTeamName()` returns `'platform-shell'` by default (bridge upgrades after app chunk; inline HTML fallback is also `'platform-shell'` until bridge runs).
-- [ ] Context check in console: `__MFE_TELEMETRY__.runWithTeam('identity', () => console.log(__MFE_TELEMETRY__.getTeamName()))` → `identity`.
+- [x] In console after app loads: `globalThis.__MFE_TELEMETRY__.getTeamName()` returns `'platform-shell'` by default (bridge upgrades after app chunk; inline HTML fallback is also `'platform-shell'` until bridge runs).
+- [x] Context check in console: `__MFE_TELEMETRY__.runWithTeam('identity', () => console.log(__MFE_TELEMETRY__.getTeamName()))` → `identity`.
 - [ ] `trace` check (optional): Shell bundle shares `@opentelemetry/api`; after load, dynamic import from the app chunk is enough, or verify in Step 5 when processors run.
 - [x] `npm run build` succeeds for `@mfe/telemetry` and `@mfe/shell`.
 
@@ -165,13 +165,14 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 **Verify (A):**
 
-- [ ] `globalThis.__MFE_TELEMETRY_INSTALL__.installTeamProcessors()` runs without throwing (or call once in console before/after navigation).
-- [ ] Add temporary `logLevel: 'verbose'` and confirm no processor registration warnings.
+- [ ] `globalThis.__MFE_TELEMETRY_INSTALL__.installTeamProcessors()` runs without throwing (runs synchronously from HTML; shell entry call is a no-op).
+- [ ] Console: `globalThis.__MFE_TEAM_PROCESSORS_INSTALLED__` is truthy after load.
 
 **Verify (B/C):**
 
-- [ ] Export payload (collector or Elastic JSON): spans and/or logs include **`team.name`: `platform-shell`** for home page activity (fallback before boundaries).
+- [ ] Export payload (Elastic / Network → OTLP JSON): spans and/or logs include **`team.name`: `platform-shell`** for home page activity (fallback before boundaries).
 - [ ] At least one **`external.http`** span and one log signal (e.g. navigation or user-action after a click) contain the attribute.
+- [ ] After Step 7+: `runWithTeam` / boundaries change `team.name` on the same signals per route.
 
 ---
 

@@ -1,3 +1,5 @@
+import type { Context } from "@opentelemetry/api";
+
 import {
   getActiveTeamName,
   runWithTeam,
@@ -5,7 +7,7 @@ import {
 } from "./teamContext";
 
 export type MfeTelemetryBridge = {
-  getTeamName: () => string;
+  getTeamName: (ctx?: Context) => string;
   teamAttributeKey: string;
   runWithTeam: typeof runWithTeam;
 };
@@ -17,7 +19,7 @@ declare global {
 
 export function installTelemetryBridge(): void {
   globalThis.__MFE_TELEMETRY__ = {
-    getTeamName: () => getActiveTeamName(),
+    getTeamName: (ctx?: Context) => getActiveTeamName(ctx),
     teamAttributeKey: TEAM_ATTRIBUTE_KEY,
     runWithTeam,
   };

@@ -29,6 +29,10 @@
         ],
       });
     </script>
+    <script src="/vendor/mfe-telemetry-processors.iife.js"></script>
+    <script>
+      globalThis.__MFE_TELEMETRY_INSTALL__?.installTeamProcessors();
+    </script>
   </head>
   <body>
     <div id="root"></div>

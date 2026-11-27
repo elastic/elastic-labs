@@ -5,13 +5,15 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:iife",
+    "build:iife": "esbuild src/processors-iife.ts --bundle --format=iife --global-name=__MFE_TELEMETRY_INSTALL__ --outfile=../shell/public/vendor/mfe-telemetry-processors.iife.js --platform=browser --minify",
     "dev": "tsc --watch"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {
+    "esbuild": "^0.25.0",
     "typescript": "^5.7.2"
   }
 }
