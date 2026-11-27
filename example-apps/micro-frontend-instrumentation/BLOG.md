@@ -109,7 +109,6 @@ const sharedDependencies = {
   "react-dom": { singleton: true, requiredVersion: "^18.3.1", eager: true },
   "react-router-dom": { singleton: true, requiredVersion: "^6.28.0", eager: true },
   "@opentelemetry/api": { singleton: true, requiredVersion: "^1.9.0", eager: true },
-  "@mfe/telemetry": { singleton: true, requiredVersion: "0.0.1", eager: true },
 };
 ```
 
@@ -117,11 +116,20 @@ Conceptually, federation gives you **independent deployables**; shared telemetry
 
 ## Step 3 — Team processors (central stamping)
 
-Not every browser instrumentation exposes a hook to add custom attributes on log records. The supported pattern is a **`LogRecordProcessor`** (and the analogue for spans) on the global provider EDOT installs.
+Not every browser instrumentation exposes a hook to add custom attributes on log records. The upstream pattern is a **`LogRecordProcessor`** (and the span equivalent) on the global provider EDOT installs. **Supported hooks to register those processors from the EDOT browser bundle are planned for a future EDOT release**; until then, the platform wires processors against the globals the bundle sets up today.
 
-A small install script runs immediately after `startBrowserSdk` and registers **team processors** that set `team.name` on every span start and log emit. They read the active team from a bridge (`__MFE_TELEMETRY__.getTeamName(ctx)`), so the shell inline script does not need to know about each route.
+That logic lives in a shared workspace package, **`@mfe/telemetry`**, alongside **`installTeamProcessors`**, the team processor implementations, the telemetry bridge, and later the **boundary** helpers. Shell and remotes depend on it; it is listed as a **Module Federation singleton** in `packages/webpack-shared/federation-shared.js` (same place as `@opentelemetry/api` in Step 2) so every chunk uses one install path and one team context stack.
 
-Processors are **`unshift`ed** onto the provider’s internal processor list—the multi-processor delegate already references that array, so registration stays a few lines without rebuilding the SDK.
+A small **IIFE** built from `@mfe/telemetry` runs in the shell’s `index.html` immediately after `startBrowserSdk`. It calls `installTeamProcessors()` and registers processors that set **`team.name`** on every span start and log emit, reading the active team from `__MFE_TELEMETRY__.getTeamName(ctx)`. The shell inline script does not need to know about routes or teams.
+
+```html
+<script src="/vendor/mfe-telemetry-processors.iife.js"></script>
+<script>
+  globalThis.__MFE_TELEMETRY_INSTALL__?.installTeamProcessors();
+</script>
+```
+
+Processors are **`unshift`ed** onto the provider’s internal processor list—the multi-processor delegate already references that array, so registration stays short without rebuilding the SDK. When EDOT exposes first-class processor configuration on `startBrowserSdk`, this install helper can shrink to passing processors in config; the **`team.name`** semantics and **`@mfe/telemetry`** boundaries stay the same.
 
 ## Step 4 — Boundaries: where the team context lives
 
