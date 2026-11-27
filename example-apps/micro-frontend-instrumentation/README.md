@@ -147,3 +147,41 @@ docker/
 ## Routing model
 
 The shell defines top-level routes and lazy-loads each remote. Each remote owns **sub-routes** under its mount path (`remote-mount` pattern).
+
+## Browser telemetry (EDOT)
+
+RUM is **shell-only**: vendored EDOT bundle under `packages/shell/public/vendor/`. Remotes do not load the agent; telemetry runs only at [http://localhost:3000](http://localhost:3000) (integrated shell).
+
+| Doc | Purpose |
+|-----|---------|
+| [INSTRUMENTATION_PLAN.md](./INSTRUMENTATION_PLAN.md) | Full setup, team boundaries, rollout steps |
+
+**Service** in Elastic: `photo-service-web`. Filter by **`team.name`**:
+
+| Team | `team.name` | Owns |
+|------|-------------|------|
+| Platform / shell | `platform-shell` | Layout, home, remote loading |
+| Auth MFE | `identity` | `/auth/*` |
+| Dashboard MFE | `gallery` | `/dashboard/*` |
+| Photo MFE | `media-detail` | `/photo/:photoId` |
+
+Example Discover / Kibana filters:
+
+- `service.name : "photo-service-web" and team.name : "identity"`
+- `service.name : "photo-service-web" and team.name : "gallery"`
+
+### Production-shaped shell (static `dist/`)
+
+```bash
+npm run build:shell:static   # PUBLIC_PATH=/ for same-origin assets
+npm run serve:shell            # http://localhost:3456 — vendor + EDOT init from dist/
+```
+
+Set `PUBLIC_PATH`, `AUTH_REMOTE_URL`, etc. when building for real deploy (see [Independent deploy](#independent-deploy)). Docker shell image builds telemetry + shell and serves `dist/` including `/vendor/*`.
+
+### Team checklist
+
+1. Depend on `@mfe/telemetry`; wrap your remote `App` in `MicrofrontendBoundary` with your `TEAM_NAMES.*`.
+2. Use `runWithTeam` for long-lived async work started outside React.
+3. Validate in Elastic with your `team.name` filter only.
+4. Do **not** add the EDOT script to remote `index.html` (standalone ports 3001–3003 export no browser OTLP).

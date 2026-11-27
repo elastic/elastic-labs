@@ -212,8 +212,8 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 **Verify (C):**
 
-- [ ] Same table as Step 7 still passes if shell wrapper is temporarily removed locally (proves remote boundary).
-- [ ] Opening the same route twice does not duplicate or drop attributes.
+- [X] Same table as Step 7 still passes if shell wrapper is temporarily removed locally (proves remote boundary).
+- [X] Opening the same route twice does not duplicate or drop attributes.
 
 ---
 
@@ -233,8 +233,8 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 **Verify:**
 
-- [ ] `dist/vendor/elastic-otel-browser.min.js` exists and loads.
-- [ ] Steps 2–3 checks pass against the built artifact, not only dev server.
+- [x] `dist/vendor/elastic-otel-browser.min.js` and `dist/vendor/mfe-telemetry-processors.iife.js` exist after `npm run build -w @mfe/shell`.
+- [ ] Steps 2–3 checks pass against the built artifact: `npm run serve:shell` → open http://localhost:3456, confirm `typeof startBrowserSdk === "function"` and OTLP POSTs (requires remotes still on 3001–3003 when testing federation from static shell).
 
 ---
 
@@ -244,7 +244,7 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 **Verify (C):**
 
-- [ ] Each team validates only their filter in a shared Elastic space.
+- [ ] Each team validates only their filter in a shared Elastic space (see [README — Browser telemetry](./README.md#browser-telemetry-edot)).
 - [ ] Standalone remotes on 3001–3003: confirm **no** OTLP traffic when opened directly (per decision).
 
 ---
