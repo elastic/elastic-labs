@@ -1,0 +1,86 @@
+# OpenTelemetry Collector Contrib 0.157.0
+#
+# Tails the three payments services' JSONL logs and ships them over OTLP/HTTP to the
+# Elastic OpenTelemetry endpoint. Companion to the Observability Labs article
+# "Alerts as data: investigating alert storms with ES|QL".
+#
+#   export LAB_DIR=$(pwd)
+#   export OTEL_EXPORTER_OTLP_ENDPOINT=https://<deployment>.apm.<region>.cloud.es.io
+#   export ES_API_KEY=<base64 api key>
+#   otelcol-contrib --config otel-collector-config.yaml
+
+receivers:
+  filelog/payment_gateway:
+    include:
+      - ${env:LAB_DIR}/events/payment-gateway.jsonl
+    start_at: end
+    resource:
+      service.name: payment-gateway
+      service.namespace: payments
+      service.version: 5.1.2
+      cloud.region: us-central1
+    operators: &json_ops
+      - id: parse_json
+        type: json_parser
+        parse_from: body
+      - id: parse_severity
+        type: severity_parser
+        parse_from: attributes.severity_text
+      - id: use_message_as_body
+        type: move
+        from: attributes.message
+        to: body
+
+  filelog/fraud_scorer:
+    include:
+      - ${env:LAB_DIR}/events/fraud-scorer.jsonl
+    start_at: end
+    resource:
+      service.name: fraud-scorer
+      service.namespace: payments
+      service.version: 2.3.0
+      cloud.region: us-central1
+    operators: *json_ops
+
+  filelog/payments_web:
+    include:
+      - ${env:LAB_DIR}/events/payments-web.jsonl
+    start_at: end
+    resource:
+      service.name: payments-web
+      service.namespace: payments
+      service.version: 4.0.1
+      cloud.region: us-central1
+    operators: *json_ops
+
+processors:
+  batch:
+    timeout: 5s
+
+  # Route every service into one data stream: logs-payments.stormlab-default
+  transform/data_stream:
+    log_statements:
+      - context: resource
+        statements:
+          - set(attributes["data_stream.type"], "logs")
+          - set(attributes["data_stream.dataset"], "payments.stormlab")
+          - set(attributes["data_stream.namespace"], "default")
+
+exporters:
+  otlphttp/elasticsearch:
+    endpoint: ${env:OTEL_EXPORTER_OTLP_ENDPOINT}
+    headers:
+      Authorization: ApiKey ${env:ES_API_KEY}
+
+service:
+  pipelines:
+    logs:
+      receivers:
+        - filelog/payment_gateway
+        - filelog/fraud_scorer
+        - filelog/payments_web
+      processors:
+        - transform/data_stream
+        - batch
+      exporters:
+        - otlphttp/elasticsearch
