@@ -21,6 +21,11 @@ const sharedDependencies = {
     requiredVersion: "^1.9.0",
     eager: true,
   },
+  "@mfe/telemetry": {
+    singleton: true,
+    requiredVersion: "0.0.1",
+    eager: true,
+  },
 };
 
 /**
