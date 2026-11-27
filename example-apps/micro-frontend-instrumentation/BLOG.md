@@ -17,9 +17,21 @@ In this post we instrument one concrete variant: **Module Federation plus client
 
 ## The application
 
-The sample is a photo gallery monorepo: a **shell** loads three **remotes** at runtime—**auth**, **dashboard**, and **photo**—over a shared REST API. Webpack Module Federation exposes `remoteEntry.js` per remote; the shell maps URLs like `/auth/*`, `/dashboard/*`, and `/photo/:photoId` to federated `App` components. Everything runs in **one tab, one JavaScript realm** even though each team builds and deploys independently.
+The sample is a photo gallery monorepo in [elastic-labs](https://github.com/elastic/elastic-labs/tree/main/example-apps/micro-frontend-instrumentation). A **shell** loads three **remotes** at runtime—**auth**, **dashboard**, and **photo**—over a shared REST API. Webpack Module Federation exposes `remoteEntry.js` per remote; the shell maps URLs like `/auth/*`, `/dashboard/*`, and `/photo/:photoId` to federated `App` components. Everything runs in **one tab, one JavaScript realm** even though each team builds and deploys independently.
 
 Shared **contracts** are types only (no UI). The shell owns global layout; each remote owns its sub-routes under its mount path.
+
+```text
+example-apps/micro-frontend-instrumentation/
+└── packages/
+    ├── shell/              # host — EDOT bundle, router, loads remotes
+    ├── auth/               # remote — /auth/*
+    ├── dashboard/          # remote — /dashboard/*
+    ├── photo/              # remote — /photo/:photoId
+    ├── contracts/          # shared API types (no UI)
+    ├── api/                # REST backend (auth, photos, comments)
+    └── webpack-shared/     # Module Federation shared deps (React, OTel API, …)
+```
 
 ## One agent, many producers
 
@@ -39,7 +51,9 @@ So we keep a single `serviceName` in Elastic (`photo-service-web`) and separate 
 
 ## Step 1 — Load the agent in the shell
 
-Only the shell’s `index.html` loads the EDOT bundle and calls `startBrowserSdk` before the webpack entry. Remotes are federated chunks; they inherit the already-running OpenTelemetry globals.
+We ship **EDOT as a prebuilt browser bundle**, not as an npm dependency in the monorepo. The minified file is checked in under `packages/shell/public/vendor/` and exposes `startBrowserSdk` on `globalThis`. That keeps the platform team from wiring OpenTelemetry packages, instrumentations, and version alignment into webpack for every app—EDOT already bundles the SDK and defaults tuned for Elastic Observability.
+
+Only the shell’s `index.html` loads that script and calls `startBrowserSdk` **before** the federated app entry. Remotes are chunks loaded later; they inherit the already-running agent and globals.
 
 ```html
 <script src="/vendor/elastic-otel-browser.min.js" crossorigin></script>
@@ -51,6 +65,16 @@ Only the shell’s `index.html` loads the EDOT bundle and calls `startBrowserSdk
     },
   });
 </script>
+```
+
+Vendor files live in `public/vendor/`, but webpack does not bundle them into `main.js`. The shell uses **`copy-webpack-plugin`** to copy `public/vendor` into `dist/vendor` on production build, and `devServer.static` serves `public/` in development so `/vendor/elastic-otel-browser.min.js` resolves the same way locally and in nginx/Docker.
+
+```js
+new CopyWebpackPlugin({
+  patterns: [
+    { from: path.resolve(__dirname, "public/vendor"), to: "dist/vendor" },
+  ],
+}),
 ```
 
 From here, automatic instrumentations (document load, `fetch`, user actions, navigation timing, and others) are active for the whole tab.
