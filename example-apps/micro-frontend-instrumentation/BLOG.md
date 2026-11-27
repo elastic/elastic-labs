@@ -230,8 +230,20 @@ After visiting only auth, a filter on `identity` should not surface dashboard-on
 - **No npm install of EDOT in the monorepo** — the shell vendors the bundle; platform owners bump the file on upgrade.
 - **No per-instrumentation attribute hooks** — processors cover navigation timing, resource timing, and other log emitters that do not offer custom hooks.
 
-## Closing thought
+## Conclusion
 
-Module Federation optimizes for **team autonomy in build and deploy**. Browser RUM optimizes for **one agent per page**. The glue is a thin platform layer—shared telemetry module, federated singletons, shell-only agent load, and **boundaries** that map UI ownership to **`team.name`**. Teams keep independent microfrontends; observability stays one product with filters that respect team boundaries.
+Module Federation optimizes for **team autonomy in build and deploy**. Browser RUM optimizes for **one agent per page**. Those two goals only conflict if every team instruments itself, or if one undifferentiated stream lands in Elastic with no way to tell who produced each signal.
 
-For implementation checklists and verification steps, see [INSTRUMENTATION_PLAN.md](./INSTRUMENTATION_PLAN.md) in this repository.
+What we built instead is a **platform-shaped pipeline** owned mostly by the shell and **`@mfe/telemetry`**:
+
+1. **Vendored EDOT bundle** in the host — no OpenTelemetry dependency graph in every package; `CopyWebpackPlugin` keeps vendor assets on the same URLs in dev and production.
+2. **Federation singletons** for `@opentelemetry/api` and `@mfe/telemetry` — one context, manual spans from any remote, one place for install helpers and `TEAM_NAMES`.
+3. **Team processors** (today via `installTeamProcessors`, tomorrow via first-class EDOT config) — stamp **`team.name`** on automatic spans and logs, including instrumentations that offer no custom hooks.
+4. **`MicrofrontendBoundary`** — turn route and remote ownership into active team context; shell and remotes both wrap so attribution survives independent releases.
+5. **EDOT sessions** — `session.id` and related fields for journey analysis; **`endSession()`** on logout so the next user does not inherit someone else’s RUM session.
+
+In Elastic you still see **one browser service** (`photo-service-web`) for session continuity and cross-remote traces. Teams work in parallel on **`team.name`**—and, when needed, on **`session.id`**—without forking the agent or the deployment model.
+
+Other microfrontend styles (iframes, orchestrators, build-time monoliths) may need different boundary mechanics, but the pattern repeats: **one observability entry point**, **shared API for feature teams**, and **explicit ownership attributes** on every signal.
+
+For step-by-step verification and repo layout, see [INSTRUMENTATION_PLAN.md](./INSTRUMENTATION_PLAN.md) in [elastic-labs](https://github.com/elastic/elastic-labs/tree/main/example-apps/micro-frontend-instrumentation).
