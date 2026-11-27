@@ -224,6 +224,8 @@ service.name : "photo-service-web" and team.name : "gallery"
 
 After visiting only auth, a filter on `identity` should not surface dashboard-only `fetch` spans—proof that boundaries and processors are doing their job.
 
+In **Elastic APM** service views, the same idea applies beyond ad hoc Discover queries: once `team.name` is on exported spans and logs, you can filter **service details** (latency, throughput, transaction and span breakdowns, and related RUM metrics) by **`team.name`** so each team sees performance data for **their slice of the UI**, not the whole federated page. Platform keeps one browser service; feature teams get dashboards that match the boundaries they ship.
+
 ## What we deliberately did not do
 
 - **No EDOT on remote standalone ports** — teams validate RUM through the shell; local remote-only dev stays lightweight.
