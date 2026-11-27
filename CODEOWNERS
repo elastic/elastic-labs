@@ -4,3 +4,4 @@ docker/ @codefromthecrypt @anuraaga
 k8s/ @codefromthecrypt @anuraaga
 example-apps/chatbot-rag-app/ @codefromthecrypt @anuraaga
 example-apps/openai-embeddings/ @codefromthecrypt @anuraaga
+example-apps/micro-frontend-instrumentation/ @david-luna
