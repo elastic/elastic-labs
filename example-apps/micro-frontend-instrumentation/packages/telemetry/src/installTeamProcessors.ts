@@ -9,20 +9,18 @@ function unwrapProvider<T>(provider: T): T {
   return wrapped._delegate ?? provider;
 }
 
-function spliceBeforeExportProcessor<T>(
-  list: T[],
-  processor: T
-): boolean {
-  if (list.some((p) => p === processor)) {
-    return false;
+function unshiftProcessor<T>(
+  list: T[] | undefined,
+  processor: T,
+  label: string
+): void {
+  if (!list) {
+    throw new Error(`${label}: could not find provider processor list`);
   }
-  if (list.length === 0) {
-    list.push(processor);
-    return true;
+  if (list.includes(processor)) {
+    return;
   }
-  const insertAt = Math.max(0, list.length - 1);
-  list.splice(insertAt, 0, processor);
-  return true;
+  list.unshift(processor);
 }
 
 function spanProcessorList(tracerProvider: unknown): unknown[] | undefined {
@@ -48,23 +46,16 @@ export function installTeamProcessors(): boolean {
     return false;
   }
 
-  const tracerProvider = unwrapProvider(trace.getTracerProvider());
-  const spanList = spanProcessorList(tracerProvider);
-  if (!spanList) {
-    throw new Error(
-      "TeamSpanProcessor: could not find tracer provider span processor list"
-    );
-  }
-  spliceBeforeExportProcessor(spanList, TeamSpanProcessor);
-
-  const loggerProvider = unwrapProvider(logs.getLoggerProvider());
-  const logList = logProcessorList(loggerProvider);
-  if (!logList) {
-    throw new Error(
-      "TeamLogRecordProcessor: could not find logger provider processor list"
-    );
-  }
-  spliceBeforeExportProcessor(logList, TeamLogRecordProcessor);
+  unshiftProcessor(
+    spanProcessorList(unwrapProvider(trace.getTracerProvider())),
+    TeamSpanProcessor,
+    "TeamSpanProcessor"
+  );
+  unshiftProcessor(
+    logProcessorList(unwrapProvider(logs.getLoggerProvider())),
+    TeamLogRecordProcessor,
+    "TeamLogRecordProcessor"
+  );
 
   (globalThis as Record<string, unknown>)[INSTALLED_KEY] = true;
   return true;

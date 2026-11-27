@@ -344,10 +344,9 @@ Operational notes:
 
 **Registration** happens against the globals EDOT just installed:
 
-- `logs.getLoggerProvider()` → insert `TeamLogRecordProcessor` **after** EDOT’s `SessionLogRecordProcessor` and **before** the OTLP `BatchLogRecordProcessor` (same ordering rule EDOT uses for session attributes).
-- `trace.getTracerProvider()` → insert `TeamSpanProcessor` **after** `SessionSpanProcessor` and **before** the export/batch processor.
+- `logs.getLoggerProvider()` / `trace.getTracerProvider()` → **`unshift`** `Team*` processors onto the existing processor array (Multi* delegates hold the same array reference, so no rebuild). Typical order: `[Team*, Session*, Batch*]`.
 
-OpenTelemetry JS 3.x constructs processor lists in the provider constructor and does not expose `addLogRecordProcessor` / `addSpanProcessor`. The installer therefore splices into the provider’s internal processor array and rebuilds the multi-processor delegate. That uses **undocumented `_sharedState` / `_activeSpanProcessor` fields** — acceptable for a platform-owned module if you **pin EDOT + OTel versions** and run a smoke test on every upgrade.
+OpenTelemetry JS 3.x does not expose `addLogRecordProcessor` / `addSpanProcessor`. The installer **`unshift`s** onto the provider’s internal list via **undocumented `_sharedState` / `_activeSpanProcessor` fields** — pin EDOT + OTel versions and smoke-test on upgrade.
 
 Sketch (simplified):
 
