@@ -1,3 +1,4 @@
+import { endBrowserEdotSession } from "@mfe/telemetry";
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -32,6 +33,7 @@ export default function ShellLayout() {
   }, [syncAuth]);
 
   function onLogout() {
+    endBrowserEdotSession();
     clearSession();
     setSignedIn(false);
     navigate("/", { replace: true });

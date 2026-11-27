@@ -219,7 +219,7 @@ At this step **`team.name` is not required** — you are proving plumbing only.
 
 ### Step 9 — Session end on logout (optional but recommended)
 
-**Do:** Auth logout calls `globalThis.__EDOT_SDK__?.endSession?.()`.
+**Do:** Shell logout (header “Log out”) calls `endBrowserEdotSession()` from `@mfe/telemetry` → `globalThis.__EDOT_SDK__?.endSession?.()`. The auth remote has no logout UI; session clear lives in `@mfe/shell`.
 
 **Verify (A/C):**
 
