@@ -81,9 +81,39 @@ From here, automatic instrumentations (document load, `fetch`, user actions, nav
 
 ## Step 2 — Shared federation modules
 
-Module Federation already shares `react` and `react-router-dom` as singletons. We added **`@opentelemetry/api`** and **`@mfe/telemetry`** the same way so every remote shares one context key and one team stack. Without that, each remote’s copy of OpenTelemetry context would not see the same “current team.”
+Module Federation already shares `react` and `react-router-dom` as singletons. We extended the same `sharedDependencies` map in `packages/webpack-shared/federation-shared.js` with **`@opentelemetry/api`** and **`@mfe/telemetry`**. Both are **singletons**: webpack loads one physical module per version, so every host and remote sees the same context keys, the same team stack, and the same bridge helpers.
 
-Conceptually, federation gives you **independent deployables**; shared telemetry modules give you **one coherent observation context** inside the host page.
+Without that, each remote could bundle its own copy of `@opentelemetry/api`. `createContextKey` would no longer match across chunks, and automatic instrumentation from the shell agent would not line up with what feature teams read in manual code.
+
+Sharing the API also means **each team can use manual instrumentation** in its microfrontend without pulling in the full EDOT bundle. After the shell starts the agent, remotes import the lightweight API and talk to the global tracer and logger providers:
+
+```ts
+import { trace, logs } from "@opentelemetry/api";
+
+trace.getTracer("@mfe/auth").startActiveSpan("login.submit", (span) => {
+  // business logic
+  span.end();
+});
+
+logs.getLogger("@mfe/auth").emit({
+  body: "Login validation failed",
+});
+```
+
+You do not set **`team.name`** by hand in every span or log: **Step 4** introduces **`MicrofrontendBoundary`** wrappers that establish team context for a subtree. The **team processors** from Step 3 stamp that context onto automatic instrumentation; boundaries do the same for manual spans and logs created inside the wrapped UI.
+
+```js
+// packages/webpack-shared/federation-shared.js (excerpt)
+const sharedDependencies = {
+  react: { singleton: true, requiredVersion: "^18.3.1", eager: true },
+  "react-dom": { singleton: true, requiredVersion: "^18.3.1", eager: true },
+  "react-router-dom": { singleton: true, requiredVersion: "^6.28.0", eager: true },
+  "@opentelemetry/api": { singleton: true, requiredVersion: "^1.9.0", eager: true },
+  "@mfe/telemetry": { singleton: true, requiredVersion: "0.0.1", eager: true },
+};
+```
+
+Conceptually, federation gives you **independent deployables**; shared telemetry modules give you **one coherent observation context** inside the host page, while still letting teams add their own spans and log records where automatic instrumentation is not enough.
 
 ## Step 3 — Team processors (central stamping)
 
